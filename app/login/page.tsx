@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
+export default function LoginForm() {
   const [mode, setMode] = useState<"password" | "otp">("password");
   const [otpSent, setOtpSent] = useState(false);
   const [email, setEmail] = useState("");
@@ -76,12 +76,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto px-6 pt-32 pb-24">
-      <h1 className="font-display text-3xl mb-2">Welcome Back</h1>
-      <p className="text-wevix-black/60 dark:text-white/60 mb-8">
-        Log in to manage your wholesale orders.
-      </p>
-
+    <>
       <div className="flex mb-8 border border-black/10 dark:border-white/10">
         {(["password", "otp"] as const).map((m) => (
           <button
@@ -171,6 +166,6 @@ export default function LoginPage() {
           Sign up
         </Link>
       </p>
-    </div>
+    </>
   );
 }
