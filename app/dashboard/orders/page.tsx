@@ -10,7 +10,7 @@ const statusColor: Record<string, string> = {
 };
 
 export default async function OrdersPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
