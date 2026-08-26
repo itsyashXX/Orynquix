@@ -1,0 +1,1 @@
+{"$schema":"https://openapi.vercel.sh/vercel.json","buildCommand":"npm run build:client","outputDirectory":"dist/client","framework":null,"rewrites":[{"source":"/api/analyze","destination":"/api/analyze"},{"source":"/api/transform","destination":"/api/transform"},{"source":"/api/layers","destination":"/api/layers"},{"source":"/(.*)","destination":"/index.html"}]}
