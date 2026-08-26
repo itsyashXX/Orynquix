@@ -1,0 +1,9 @@
+MAGICCIPHER V3 — TERMUX UPDATE
+
+1. Extract V3 ZIP in Download.
+2. Replace the GitHub working copy with V3 while preserving .git.
+3. npm install
+4. npm run build
+5. git add . && git commit && git push
+
+See ChatGPT response for one-paste command.
