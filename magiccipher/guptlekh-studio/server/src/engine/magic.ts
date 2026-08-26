@@ -275,7 +275,7 @@ export function analyzeMagic(input: string, options: number | AnalyzeOptions = 3
   }
 
   const h = entropy(input);
-  let likelyCategory = 'Unknown / needs analysis';
+  let likelyCategory = 'No reliable plaintext found yet';
   if (suppliedKey && deduped[0]?.title.startsWith('Vigenère')) likelyCategory = 'Key-assisted Vigenère candidate';
   else if (deduped[0]?.score >= 76) likelyCategory = 'Strong evidence for a reversible encoding or classical cipher';
   else if (h > 4.6 && input.length > 24) likelyCategory = 'High-entropy data — possibly encrypted, compressed, or random';
