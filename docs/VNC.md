@@ -1,6 +1,6 @@
 # TigerVNC desktop
 
-Orynquix V3.1 uses the Ubuntu `tigervnc-standalone-server` package and the distribution-provided `tigervncserver` wrapper. Ubuntu 24.04 provides this package for ARM64 and includes `/usr/bin/Xtigervnc` and `/usr/bin/tigervncserver`.
+Orynquix V3.2 uses the Ubuntu `tigervnc-standalone-server` package and the distribution-provided `tigervncserver` wrapper. Ubuntu 24.04 provides this package for ARM64 and includes `/usr/bin/Xtigervnc` and `/usr/bin/tigervncserver`.
 
 The wrapper supports the options Orynquix uses: explicit display number, geometry, depth, localhost binding, security types, password file, RFB port, and custom xstartup. References:
 
@@ -20,7 +20,9 @@ Depth:         24
 Security type: VncAuth
 ```
 
-`VncAuth` is used only on the loopback interface. Orynquix V3.1 does not expose this unencrypted mode to the LAN. Future LAN support requires a separate explicit security design.
+`VncAuth` is used only on the loopback interface. Orynquix V3.2 does not expose this unencrypted mode to the LAN. Future LAN support requires a separate explicit security design.
+
+When browser access is selected, Ubuntu's `novnc` and `websockify` packages expose the same desktop at `http://127.0.0.1:6080/vnc.html`. Both ends remain on loopback. The web proxy has separate PID/start-time metadata and refuses to take over an occupied port. Use `orynquix open` to start the desktop and ask Android to open the local URL.
 
 ## Commands
 
@@ -33,6 +35,8 @@ orynquix sessions
 orynquix passwd
 orynquix resolution 1600x900
 orynquix logs vnc
+orynquix logs web
+orynquix open
 ```
 
 The session registry stores the exact TigerVNC PID, its Linux process start-time identity, display, port, resolution, and start timestamp. Stop operations require both PID command-line validation and start-time identity validation. Orynquix never kills VNC processes merely by name.

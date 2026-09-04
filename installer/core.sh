@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-ORYNQUIX_TOTAL_STAGES=13
+ORYNQUIX_TOTAL_STAGES=16
 ORYNQUIX_CURRENT_STAGE=0
 ORYNQUIX_LOCK_HELD=0
 
@@ -13,8 +13,10 @@ Options:
   --browser NAME         chromium, firefox, both, or none
   --editor NAME          auto, vscode, code-server, both, or none
   --dev-tools NAME       none, recommended, full, or custom:python,node,...
+  --viewer NAME          vnc, browser, or both
   --username NAME        Linux desktop username
   --resolution WIDTHxHEIGHT
+  --ubuntu-release NAME  24.04 (tested desktop) or 26.04 (experimental)
   --reconfigure          Ask installation-choice questions again
   --non-interactive      Use validated defaults/arguments; never prompt
   --linux-password-fd N  Read the Linux password from open file descriptor N
@@ -50,10 +52,14 @@ parse_install_args() {
                 require_option_value "$1" "${2-}"; ORYNQUIX_EDITOR=$2; shift 2 ;;
             --dev-tools)
                 require_option_value "$1" "${2-}"; ORYNQUIX_DEV_TOOLS=$2; shift 2 ;;
+            --viewer)
+                require_option_value "$1" "${2-}"; ORYNQUIX_VIEWER=$2; shift 2 ;;
             --username)
                 require_option_value "$1" "${2-}"; ORYNQUIX_USERNAME=$2; shift 2 ;;
             --resolution)
                 require_option_value "$1" "${2-}"; ORYNQUIX_RESOLUTION=$2; shift 2 ;;
+            --ubuntu-release)
+                require_option_value "$1" "${2-}"; ORYNQUIX_UBUNTU_RELEASE=$2; shift 2 ;;
             --linux-password-fd)
                 require_option_value "$1" "${2-}"; ORYNQUIX_LINUX_PASSWORD_FD=$2; shift 2 ;;
             --vnc-password-fd)
@@ -84,11 +90,17 @@ validate_install_args() {
     [[ -z "$ORYNQUIX_DEV_TOOLS" ]] || validate_dev_tools_choice "$ORYNQUIX_DEV_TOOLS" || {
         log_error "Invalid development-tool choice: $ORYNQUIX_DEV_TOOLS"; return 64;
     }
+    [[ -z "$ORYNQUIX_VIEWER" ]] || validate_viewer_choice "$ORYNQUIX_VIEWER" || {
+        log_error 'Viewer choice must be vnc, browser, or both.'; return 64;
+    }
     validate_username "$ORYNQUIX_USERNAME" || {
         log_error "Invalid or reserved Linux username: $ORYNQUIX_USERNAME"; return 64;
     }
     [[ -z "$ORYNQUIX_RESOLUTION" ]] || validate_resolution "$ORYNQUIX_RESOLUTION" || {
         log_error "Resolution must be WIDTHxHEIGHT within 640x480–7680x4320."; return 64;
+    }
+    validate_ubuntu_release "$ORYNQUIX_UBUNTU_RELEASE" || {
+        log_error 'Ubuntu release must be 24.04 or 26.04.'; return 64;
     }
     [[ -z "$ORYNQUIX_LINUX_PASSWORD_FD" || "$ORYNQUIX_LINUX_PASSWORD_FD" =~ ^[0-9]+$ ]] || {
         log_error "--linux-password-fd requires a numeric file descriptor."; return 64;
@@ -205,8 +217,12 @@ finish_installation() {
     printf 'Desktop         XFCE\n'
     printf 'Display         :%s\n' "$ORYNQUIX_DEFAULT_DISPLAY"
     printf 'VNC port        %s\n' "$((5900 + ORYNQUIX_DEFAULT_DISPLAY))"
+    printf 'Desktop access  %s\n' "$ORYNQUIX_VIEWER"
     printf '\nStart desktop:  orynquix start\n'
     printf 'Enter Ubuntu:   orynquix enter\n'
     printf 'System health:  orynquix doctor\n'
     printf '\nConnect your VNC viewer to 127.0.0.1:%s after starting the desktop.\n' "$((5900 + ORYNQUIX_DEFAULT_DISPLAY))"
+    if [[ "$ORYNQUIX_VIEWER" == browser || "$ORYNQUIX_VIEWER" == both ]]; then
+        printf 'Or open http://127.0.0.1:%s/vnc.html?autoconnect=true&resize=scale in Android.\n' "$ORYNQUIX_DEFAULT_WEB_PORT"
+    fi
 }

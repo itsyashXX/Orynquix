@@ -24,7 +24,7 @@ The initial selector offers:
 4. **Developer** — includes the full supported development bundle.
 5. **Custom** — asks about each optional category.
 
-Custom browser choices are Chromium, Firefox, both, or skip. Editor choices are automatic compatibility selection, VS Code desktop, code-server, both, or skip. Development tools have a separate yes/no gate followed by Recommended, Full, Custom, or Skip.
+Every interactive installation asks how the desktop should be opened: a VNC app, the Android browser through local noVNC, or both. Custom browser choices are Chromium, Firefox, both, or skip. Ubuntu's Chromium path normally requires Snap, which standard PRoot cannot provide; in that case Orynquix records and verifies a Firefox fallback instead of claiming Chromium succeeded. Editor choices are automatic compatibility selection, VS Code desktop, code-server, both, or skip. Development tools have a separate yes/no gate followed by Recommended, Full, Custom, or Skip.
 
 Selections are persisted in `~/.orynquix/config.ini` and validated before use. Re-run with `--reconfigure` to ask again.
 
@@ -40,6 +40,7 @@ bash install.sh \
   --browser both \
   --editor auto \
   --dev-tools custom:git,python,node \
+  --viewer both \
   --username orynquix
 ```
 

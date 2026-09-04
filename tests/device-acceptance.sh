@@ -34,7 +34,7 @@ command -v orynquix >/dev/null 2>&1 || {
 }
 
 printf 'ORYNQUIX V3 DEVICE ACCEPTANCE\n\n'
-check 'CLI reports version 0.2.1-alpha' bash -c '[[ "$(orynquix version)" == "Orynquix 0.2.1-alpha" ]]'
+check 'CLI reports version 3.2.0-alpha' bash -c '[[ "$(orynquix version)" == "Orynquix 3.2.0-alpha" ]]'
 check 'System doctor passes' orynquix doctor
 check 'Current device information can be detected' orynquix device
 check 'Runtime configuration is private' bash -c '[[ "$(stat -c %a "$HOME/.orynquix/config.ini")" == 600 ]]'
@@ -53,6 +53,11 @@ fi
 check 'Managed VNC session reports healthy' orynquix status
 check 'Managed session table is available' orynquix sessions
 check 'VNC port 5901 accepts a local connection' bash -c 'exec 3<>/dev/tcp/127.0.0.1/5901'
+
+viewer=$(awk -F= '$1 == "viewer" {print $2; exit}' "$HOME/.orynquix/config.ini")
+if [[ "$viewer" == browser || "$viewer" == both ]]; then
+    check 'Browser desktop port 6080 accepts a local connection' bash -c 'exec 3<>/dev/tcp/127.0.0.1/6080'
+fi
 
 if [[ "$started_by_test" == true ]]; then
     orynquix stop

@@ -9,14 +9,47 @@ inside_orynquix_proot() {
 }
 
 ubuntu_provider_available() {
-    proot-distro list 2>/dev/null | awk '
-        BEGIN { found=0 }
-        {
-            line=tolower($0)
-            if (line ~ /ubuntu/ && (line ~ /<[[:space:]]*ubuntu[[:space:]]*>/ || line ~ /alias[^a-z0-9]+ubuntu([^a-z0-9]|$)/)) found=1
-        }
-        END { exit(found ? 0 : 1) }
-    '
+    detect_proot_distro_mode
+}
+
+detect_proot_distro_mode() {
+    local help_output list_output plugin
+    ORYNQUIX_PROOT_MODE=''
+    proot_distro_available || return 1
+
+    help_output=$(proot-distro install --help 2>&1 || true)
+    if grep -Eq -- '--name([=[:space:]]|$)' <<<"$help_output" &&
+        grep -Eiq 'image|oci|registry' <<<"$help_output"; then
+        ORYNQUIX_PROOT_MODE=oci
+        return 0
+    fi
+
+    for plugin in \
+        "${PREFIX:-}/etc/proot-distro/ubuntu.sh" \
+        "${PREFIX:-}/etc/proot-distro/ubuntu.properties"; do
+        if [[ -r "$plugin" ]]; then
+            ORYNQUIX_PROOT_MODE=legacy
+            return 0
+        fi
+    done
+
+    list_output=$(proot-distro list 2>&1 || true)
+    list_output=$(sed $'s/\033\\[[0-9;]*[[:alpha:]]//g' <<<"$list_output")
+    if grep -Eiq '(^|[^[:alnum:]_])ubuntu([^[:alnum:]_]|$)' <<<"$list_output"; then
+        ORYNQUIX_PROOT_MODE=legacy
+        return 0
+    fi
+    return 1
+}
+
+select_ubuntu_install_source() {
+    detect_proot_distro_mode || return 1
+    validate_ubuntu_release "$ORYNQUIX_UBUNTU_RELEASE" || return 1
+    case "$ORYNQUIX_PROOT_MODE" in
+        oci) ORYNQUIX_UBUNTU_IMAGE="ubuntu:$ORYNQUIX_UBUNTU_RELEASE" ;;
+        legacy) ORYNQUIX_UBUNTU_IMAGE=ubuntu ;;
+        *) return 1 ;;
+    esac
 }
 
 ubuntu_rootfs_works() {

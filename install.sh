@@ -38,6 +38,12 @@ source "$ORYNQUIX_PROJECT_ROOT/installer/users.sh"
 source "$ORYNQUIX_PROJECT_ROOT/installer/desktop.sh"
 # shellcheck source=installer/vnc.sh
 source "$ORYNQUIX_PROJECT_ROOT/installer/vnc.sh"
+# shellcheck source=installer/access.sh
+source "$ORYNQUIX_PROJECT_ROOT/installer/access.sh"
+# shellcheck source=installer/apps.sh
+source "$ORYNQUIX_PROJECT_ROOT/installer/apps.sh"
+# shellcheck source=installer/theme.sh
+source "$ORYNQUIX_PROJECT_ROOT/installer/theme.sh"
 # shellcheck source=installer/validation.sh
 source "$ORYNQUIX_PROJECT_ROOT/installer/validation.sh"
 
@@ -70,6 +76,9 @@ main() {
     run_stage ubuntu_user 'Standard Linux user' create_linux_user verify_linux_user
     run_stage desktop 'XFCE desktop' install_desktop verify_desktop
     run_stage vnc 'TigerVNC and desktop startup' configure_vnc verify_vnc_configuration
+    run_stage access 'VNC app and browser access' configure_desktop_access verify_desktop_access
+    run_stage apps 'Selected applications and development tools' install_selected_applications verify_selected_applications
+    run_stage theme 'Orynquix desktop appearance' configure_orynquix_appearance verify_orynquix_appearance
     run_stage cli 'Orynquix CLI' install_orynquix_cli verify_orynquix_cli
     run_stage validation 'Final installation validation' validate_installation verify_installation
 

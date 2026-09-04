@@ -29,7 +29,7 @@ apply_profile_defaults() {
 
 load_saved_choices() {
     [[ -r "$ORYNQUIX_CONFIG_FILE" ]] || return 1
-    local profile username browser editor dev_tools resolution audio storage compositor ui_scale
+    local profile username browser editor dev_tools resolution audio storage compositor ui_scale viewer ubuntu_target
     profile=$(config_get system profile || true)
     username=$(config_get user name || true)
     browser=$(config_get applications browser || true)
@@ -40,12 +40,15 @@ load_saved_choices() {
     storage=$(config_get android storage || true)
     compositor=$(config_get desktop compositor || true)
     ui_scale=$(config_get desktop ui_scale || true)
+    viewer=$(config_get access viewer || true)
+    ubuntu_target=$(config_get ubuntu target_release || true)
 
     validate_profile "$profile" && validate_username "$username" &&
         validate_browser_choice "$browser" && validate_editor_choice "$editor" &&
         validate_dev_tools_choice "$dev_tools" && validate_resolution "$resolution" &&
         validate_tristate "${audio:-auto}" && validate_tristate "${storage:-auto}" &&
-        validate_compositor_choice "${compositor:-auto}" && validate_ui_scale "${ui_scale:-1.0}" || return 1
+        validate_compositor_choice "${compositor:-auto}" && validate_ui_scale "${ui_scale:-1.0}" &&
+        validate_viewer_choice "${viewer:-vnc}" && validate_ubuntu_release "${ubuntu_target:-24.04}" || return 1
 
     ORYNQUIX_PROFILE=$profile
     ORYNQUIX_USERNAME=$username
@@ -57,6 +60,8 @@ load_saved_choices() {
     ORYNQUIX_STORAGE=${storage:-auto}
     ORYNQUIX_COMPOSITOR=${compositor:-auto}
     ORYNQUIX_UI_SCALE=${ui_scale:-1.0}
+    ORYNQUIX_VIEWER=${viewer:-vnc}
+    ORYNQUIX_UBUNTU_RELEASE=${ubuntu_target:-24.04}
 }
 
 choose_profile_interactive() {
@@ -79,9 +84,9 @@ choose_profile_interactive() {
 choose_browser_interactive() {
     local choice
     prompt_menu choice 'Which browser should Orynquix install?' 1 \
-        '1. Chromium' \
+        '1. Chromium when compatible — otherwise verified Firefox fallback' \
         '2. Firefox' \
-        '3. Both Chromium and Firefox' \
+        '3. Both when compatible — Firefox remains the Snap-free fallback' \
         '4. Skip browsers'
     case "$choice" in
         1) ORYNQUIX_BROWSER=chromium ;;
@@ -105,6 +110,19 @@ choose_editor_interactive() {
         3) ORYNQUIX_EDITOR=code-server ;;
         4) ORYNQUIX_EDITOR=both ;;
         5) ORYNQUIX_EDITOR=none ;;
+    esac
+}
+
+choose_viewer_interactive() {
+    local choice
+    prompt_menu choice 'How do you want to open the Orynquix desktop?' 1 \
+        '1. VNC app — connect with RVNC or another VNC viewer' \
+        '2. Android browser — open the local noVNC web address' \
+        '3. Both — enable VNC app and browser access'
+    case "$choice" in
+        1) ORYNQUIX_VIEWER=vnc ;;
+        2) ORYNQUIX_VIEWER=browser ;;
+        3) ORYNQUIX_VIEWER=both ;;
     esac
 }
 
@@ -171,7 +189,7 @@ choose_username_interactive() {
 
 configure_installation_choices() {
     local explicit_choices=0
-    [[ -n "$ORYNQUIX_PROFILE$ORYNQUIX_BROWSER$ORYNQUIX_EDITOR$ORYNQUIX_DEV_TOOLS" ]] && explicit_choices=1
+    [[ -n "$ORYNQUIX_PROFILE$ORYNQUIX_BROWSER$ORYNQUIX_EDITOR$ORYNQUIX_DEV_TOOLS$ORYNQUIX_VIEWER" ]] && explicit_choices=1
 
     if [[ "$ORYNQUIX_RECONFIGURE" != 1 && "$explicit_choices" == 0 ]] && load_saved_choices; then
         log_success "Loaded previously validated installation choices"
@@ -193,6 +211,14 @@ configure_installation_choices() {
     fi
 
     apply_profile_defaults
+
+    if [[ -z "$ORYNQUIX_VIEWER" ]]; then
+        if [[ "$ORYNQUIX_NON_INTERACTIVE" == 1 ]]; then
+            ORYNQUIX_VIEWER=vnc
+        else
+            choose_viewer_interactive
+        fi
+    fi
 
     if [[ "$ORYNQUIX_PROFILE" == custom ]]; then
         [[ -n "$ORYNQUIX_BROWSER" ]] || choose_browser_interactive
@@ -223,10 +249,12 @@ configure_installation_choices() {
 show_installation_plan() {
     printf '\n%sINSTALLATION PLAN%s\n\n' "$C_BOLD" "$C_RESET"
     print_kv Profile "$ORYNQUIX_PROFILE"
+    print_kv 'Ubuntu target' "$ORYNQUIX_UBUNTU_RELEASE"
     print_kv 'Linux user' "$ORYNQUIX_USERNAME"
     print_kv Browser "$ORYNQUIX_BROWSER"
     print_kv Editor "$ORYNQUIX_EDITOR"
     print_kv 'Development tools' "$ORYNQUIX_DEV_TOOLS"
+    print_kv 'Desktop access' "$ORYNQUIX_VIEWER"
     print_kv Resolution "$ORYNQUIX_RESOLUTION"
     print_kv Audio "$ORYNQUIX_AUDIO"
     print_kv 'Android storage' "$ORYNQUIX_STORAGE"
@@ -240,6 +268,7 @@ verify_choices() {
         validate_browser_choice "$ORYNQUIX_BROWSER" &&
         validate_editor_choice "$ORYNQUIX_EDITOR" &&
         validate_dev_tools_choice "$ORYNQUIX_DEV_TOOLS" &&
+        validate_viewer_choice "$ORYNQUIX_VIEWER" &&
         validate_resolution "$ORYNQUIX_RESOLUTION" &&
         validate_ui_scale "$ORYNQUIX_UI_SCALE" &&
         validate_tristate "$ORYNQUIX_AUDIO" &&
@@ -262,6 +291,7 @@ profile=$ORYNQUIX_PROFILE
 [ubuntu]
 distribution=ubuntu
 preferred_release=$ORYNQUIX_PREFERRED_UBUNTU
+target_release=$ORYNQUIX_UBUNTU_RELEASE
 actual_release=$actual_release
 
 [user]
@@ -279,6 +309,11 @@ display=$ORYNQUIX_DEFAULT_DISPLAY
 port=$((5900 + ORYNQUIX_DEFAULT_DISPLAY))
 resolution=$ORYNQUIX_RESOLUTION
 depth=$ORYNQUIX_DEFAULT_DEPTH
+localhost=true
+
+[access]
+viewer=$ORYNQUIX_VIEWER
+web_port=$ORYNQUIX_DEFAULT_WEB_PORT
 localhost=true
 
 [applications]

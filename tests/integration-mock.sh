@@ -44,8 +44,12 @@ write_mock proot-distro '#!/usr/bin/env bash' \
     'state=${MOCK_PROOT_STATE:?}' \
     'case "${1-}" in' \
     '  --version) printf "proot-distro mock 1.0\n"; exit 0 ;;' \
-    '  list) printf "* Ubuntu (24.04) < ubuntu >\n"; exit 0 ;;' \
-    '  install) touch "$state/installed"; exit 0 ;;' \
+    '  list) printf "No containers installed.\n"; exit 0 ;;' \
+    '  install)' \
+    '    if [[ "${2-}" == --help ]]; then printf "usage: proot-distro install [--name NAME] IMAGE from OCI registry\n"; exit 0; fi' \
+    '    [[ "${2-}" == ubuntu:24.04 ]] || exit 66' \
+    '    printf "%s\n" "${2-}" >"$state/installed-image"' \
+    '    touch "$state/installed"; exit 0 ;;' \
     '  login) shift ;;' \
     '  *) exit 64 ;;' \
     'esac' \
@@ -68,9 +72,15 @@ write_mock proot-distro '#!/usr/bin/env bash' \
     '      -r:/etc/orynquix-release) [[ -f "$state/marker" ]] ;;' \
     '      -d:/home/*) [[ -f "$state/user" ]] ;;' \
     '      -x:/usr/local/libexec/orynquix/vnc-session) [[ -f "$state/vnc-runtime" ]] ;;' \
+    '      -x:/usr/local/libexec/orynquix/web-session) [[ -f "$state/web-runtime" ]] ;;' \
+    '      -x:/usr/local/libexec/orynquix/apply-appearance) [[ -f "$state/appearance-runtime" ]] ;;' \
+    '      -x:/usr/local/libexec/orynquix/start-xfce) [[ -f "$state/xfce-runtime" ]] ;;' \
     '      -x:/home/*/xstartup) [[ -f "$state/xstartup" ]] ;;' \
+    '      -x:/home/*/orynquix-terminal.desktop) [[ -f "$state/terminal-launcher" ]] ;;' \
+    '      -x:/home/*/orynquix-files.desktop) [[ -f "$state/files-launcher" ]] ;;' \
     '      -s:/home/*/vnc.ini) [[ -f "$state/vnc-config" ]] ;;' \
     '      -s:/home/*/passwd) [[ -f "$state/vnc-password" ]] ;;' \
+    '      -s:/usr/share/backgrounds/orynquix/orynquix-default.png) [[ -f "$state/wallpaper" ]] ;;' \
     '      *) exit 0 ;;' \
     '    esac ;;' \
     '  /bin/cat)' \
@@ -98,6 +108,8 @@ write_mock proot-distro '#!/usr/bin/env bash' \
     '    exit 0 ;;' \
     '  /usr/bin/apt-get)' \
     '    printf "Fetched mock packages that must stay in the log\n"; exit 0 ;;' \
+    '  /usr/bin/dpkg-query)' \
+    '    printf "installed\n"; exit 0 ;;' \
     '  /bin/sh)' \
     '    script=${2-}' \
     '    marker=${3-}' \
@@ -105,8 +117,14 @@ write_mock proot-distro '#!/usr/bin/env bash' \
     '      target=${4-}; cat >/dev/null' \
     '      case "$target" in' \
     '        /usr/local/libexec/orynquix/vnc-session) touch "$state/vnc-runtime" ;;' \
+    '        /usr/local/libexec/orynquix/web-session) touch "$state/web-runtime" ;;' \
+    '        /usr/local/libexec/orynquix/apply-appearance) touch "$state/appearance-runtime" ;;' \
+    '        /usr/local/libexec/orynquix/start-xfce) touch "$state/xfce-runtime" ;;' \
+    '        /usr/share/backgrounds/orynquix/orynquix-default.png) touch "$state/wallpaper" ;;' \
     '        */xstartup) touch "$state/xstartup" ;;' \
     '        */vnc.ini) touch "$state/vnc-config" ;;' \
+    '        */orynquix-terminal.desktop) touch "$state/terminal-launcher" ;;' \
+    '        */orynquix-files.desktop) touch "$state/files-launcher" ;;' \
     '      esac' \
     '    elif [[ "$script" == *password_command* ]]; then' \
     '      cat >/dev/null; touch "$state/vnc-password"' \
@@ -123,6 +141,14 @@ write_mock proot-distro '#!/usr/bin/env bash' \
     '        status|sessions)' \
     '          if [[ -f "$state/vnc-running" ]]; then printf "state=running\npid=4242\ndisplay=:%s\nport=%s\nresolution=%s\nlocalhost=true\n" "$session_display" "$((5900 + session_display))" "$session_geometry"; else printf "state=stopped\n"; exit 3; fi ;;' \
     '        log) printf "mock VNC log\n" ;;' \
+    '      esac' \
+    '    elif [[ "$nested" == /usr/local/libexec/orynquix/web-session ]]; then' \
+    '      web_action=${1:-status}; web_port=${2:-6080}; vnc_port=${3:-5901}' \
+    '      case "$web_action" in' \
+    '        start) touch "$state/web-running"; printf "state=running\npid=4343\nweb_port=%s\nvnc_port=%s\nlocalhost=true\n" "$web_port" "$vnc_port" ;;' \
+    '        stop) rm -f "$state/web-running"; printf "state=stopped\n" ;;' \
+    '        status) if [[ -f "$state/web-running" ]]; then printf "state=running\npid=4343\nweb_port=%s\nvnc_port=%s\nlocalhost=true\n" "$web_port" "$vnc_port"; else printf "state=stopped\n"; exit 3; fi ;;' \
+    '        log) printf "mock browser-access log\n" ;;' \
     '      esac' \
     '    elif [[ "$nested" == /usr/bin/apt-get ]]; then' \
     '      printf "Fetched mock packages that must stay in the log\n"' \
@@ -145,7 +171,7 @@ run_install() {
         exec 9<<<'test-passphrase'
         exec 8<<<'vncpass'
         bash "$PROJECT_ROOT/install.sh" --non-interactive --yes --preset standard \
-            --username testuser --linux-password-fd 9 --vnc-password-fd 8 "$@"
+            --viewer both --username testuser --linux-password-fd 9 --vnc-password-fd 8 "$@"
     ) >"$output" 2>&1; then
         printf 'Mock installer failed; captured output follows:\n' >&2
         tail -n 80 "$output" >&2
@@ -157,12 +183,12 @@ first_output="$TEST_TMP/first-output"
 second_output="$TEST_TMP/second-output"
 run_install "$first_output"
 
-# Exercise an in-place V3-to-V3.1 refresh: completed stage state exists, while the
+# Exercise an in-place V3-to-V3.2 refresh: completed stage state exists, while the
 # installed CLI and Ubuntu marker identify the previous product release.
 installed_cli=$(readlink -f -- "$TEST_PREFIX/bin/orynquix")
-printf '#!/usr/bin/env bash\nprintf "Orynquix 0.2.0-alpha\\n"\n' >"$installed_cli"
+printf '#!/usr/bin/env bash\nprintf "Orynquix 0.2.1-alpha\\n"\n' >"$installed_cli"
 chmod +x "$installed_cli"
-printf 'NAME=Orynquix\nVERSION=0.2.0-alpha\nUBUNTU_VERSION=24.04\n' >"$MOCK_STATE/marker"
+printf 'NAME=Orynquix\nVERSION=0.2.1-alpha\nUBUNTU_VERSION=24.04\n' >"$MOCK_STATE/marker"
 run_install "$second_output"
 
 assert() {
@@ -176,20 +202,23 @@ assert() {
     fi
 }
 
-assert 'first install reaches the final verified stage' grep -Fq '[13/13 · 100%]' "$first_output"
+assert 'first install reaches the final verified stage' grep -Fq '[16/16 · 100%]' "$first_output"
+assert 'current proot-distro OCI mode is detected without a listed Ubuntu alias' grep -Fq 'Ubuntu provisioning mode: oci' "$first_output"
+assert 'tested Ubuntu image is selected for current proot-distro' grep -Fxq 'ubuntu:24.04' "$MOCK_STATE/installed-image"
 assert 'provider fallback is reported honestly' grep -Fq 'current provider supplied 24.04' "$first_output"
 assert 'package download chatter is absent from the terminal' test "$(grep -c 'mock package' "$first_output" || true)" -eq 0
 assert 'package output is retained in the private log' grep -Fq 'mock package line' "$TEST_HOME/.orynquix/logs/install.log"
 assert 'configuration records actual Ubuntu version' grep -Fxq 'actual_release=24.04' "$TEST_HOME/.orynquix/config.ini"
-assert 'configuration records the V3.1 product version' grep -Fxq 'product_version=0.2.1-alpha' "$TEST_HOME/.orynquix/config.ini"
+assert 'configuration records the V3.2 product version' grep -Fxq 'product_version=3.2.0-alpha' "$TEST_HOME/.orynquix/config.ini"
+assert 'configuration records browser and VNC desktop access' grep -Fxq 'viewer=both' "$TEST_HOME/.orynquix/config.ini"
 assert 'configuration records selected browser' grep -Fxq 'browser=chromium' "$TEST_HOME/.orynquix/config.ini"
 assert 'standard Linux user was created' grep -Fxq testuser "$MOCK_STATE/user"
 assert 'Linux password passed through stdin reached chpasswd' test -f "$MOCK_STATE/password"
-assert 'all thirteen verified stages were persisted' test "$(wc -l <"$TEST_HOME/.orynquix/state/install-state")" -eq 13
-assert 'V3-to-V3.1 rerun reuses only the nine version-independent stable stages' test "$(grep -c 'Already complete and verified' "$second_output")" -eq 9
+assert 'all sixteen verified stages were persisted' test "$(wc -l <"$TEST_HOME/.orynquix/state/install-state")" -eq 16
+assert 'V3-to-V3.2 rerun reuses only the twelve version-independent stable stages' test "$(grep -c 'Already complete and verified' "$second_output")" -eq 12
 assert 'rerun displays freshly detected device information' grep -Fq 'ExampleCorp' "$second_output"
-assert 'V3-to-V3.1 rerun refreshes the Ubuntu product marker' grep -Fxq 'VERSION=0.2.1-alpha' "$MOCK_STATE/marker"
-assert 'installed CLI executes from the Termux prefix' test "$($TEST_PREFIX/bin/orynquix version)" = 'Orynquix 0.2.1-alpha'
+assert 'V3-to-V3.2 rerun refreshes the Ubuntu product marker' grep -Fxq 'VERSION=3.2.0-alpha' "$MOCK_STATE/marker"
+assert 'installed CLI executes from the Termux prefix' test "$($TEST_PREFIX/bin/orynquix version)" = 'Orynquix 3.2.0-alpha'
 assert 'runtime config is private' test "$(stat -c %a "$TEST_HOME/.orynquix/config.ini")" = 600
 assert 'installer state is private' test "$(stat -c %a "$TEST_HOME/.orynquix/state/install-state")" = 600
 
@@ -208,17 +237,24 @@ run_cli start >"$start_output"
 run_cli status >"$status_output"
 run_cli sessions >"$sessions_output"
 run_cli doctor >"$doctor_output"
+run_cli theme light >/dev/null
+run_cli ui-scale 1.25 >/dev/null
 run_cli resolution 1600x900 >/dev/null
 run_cli restart >"$restart_output"
 
 assert 'start returns local connection information' grep -Fq 'Connect to: 127.0.0.1:5901' "$start_output"
+assert 'start returns browser desktop information' grep -Fq 'Browser desktop: http://127.0.0.1:6080/' "$start_output"
 assert 'status reports the managed session as running' grep -Fq 'running' "$status_output"
 assert 'sessions prints a managed session table' grep -Fq 'STATE' "$sessions_output"
-assert 'doctor verifies the Phase 2 desktop stack' grep -Fq '[✓] TigerVNC configuration' "$doctor_output"
+assert 'doctor verifies the desktop stack' grep -Fq '[✓] TigerVNC configuration' "$doctor_output"
+assert 'theme command persists the light theme' grep -Fxq 'theme=orynquix-light' "$TEST_HOME/.orynquix/config.ini"
+assert 'UI scale command persists a validated scale' grep -Fxq 'ui_scale=1.25' "$TEST_HOME/.orynquix/config.ini"
 assert 'resolution command persists the validated geometry' grep -Fxq 'resolution=1600x900' "$TEST_HOME/.orynquix/config.ini"
 assert 'restart leaves the managed session running' test -f "$MOCK_STATE/vnc-running"
+assert 'restart leaves browser desktop access running' test -f "$MOCK_STATE/web-running"
 run_cli stop >"$stop_output"
 assert 'stop terminates only the managed session' test ! -f "$MOCK_STATE/vnc-running"
+assert 'stop terminates the managed browser proxy' test ! -f "$MOCK_STATE/web-running"
 
 stopped_status_output="$TEST_TMP/stopped-status-output"
 if run_cli status >"$stopped_status_output"; then stopped_status_rc=0; else stopped_status_rc=$?; fi

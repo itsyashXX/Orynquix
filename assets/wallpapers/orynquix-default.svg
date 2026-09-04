@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#130f24"/>
+      <stop offset="0.48" stop-color="#291641"/>
+      <stop offset="1" stop-color="#071c2b"/>
+    </linearGradient>
+    <radialGradient id="orange" cx="0.18" cy="0.8" r="0.62">
+      <stop offset="0" stop-color="#ff7139" stop-opacity="0.58"/>
+      <stop offset="1" stop-color="#ff7139" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cyan" cx="0.83" cy="0.17" r="0.62">
+      <stop offset="0" stop-color="#36c8d8" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#36c8d8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="42"/></filter>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#background)"/>
+  <rect width="1920" height="1080" fill="url(#orange)"/>
+  <rect width="1920" height="1080" fill="url(#cyan)"/>
+  <path d="M-80 890 C360 570 590 1180 1070 770 S1660 430 2030 650" fill="none" stroke="#ff7544" stroke-width="170" stroke-opacity="0.09" filter="url(#soft)"/>
+  <path d="M-120 230 C370 510 690 -80 1150 280 S1710 690 2040 350" fill="none" stroke="#50d7e5" stroke-width="120" stroke-opacity="0.08" filter="url(#soft)"/>
+  <g transform="translate(960 505)">
+    <circle r="154" fill="none" stroke="#ffffff" stroke-width="18" stroke-opacity="0.92"/>
+    <path d="M-52-92 L58-92 L118 0 L58 92 L-52 92 L-112 0 Z" fill="none" stroke="#ffffff" stroke-width="16" stroke-linejoin="round"/>
+    <circle r="29" fill="#ff7544"/>
+  </g>
+  <text x="960" y="750" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="54" font-weight="600" letter-spacing="14">ORYNQUIX</text>
+  <text x="960" y="804" text-anchor="middle" fill="#d8d4e6" font-family="sans-serif" font-size="22" letter-spacing="4">UBUNTU DESKTOP · SHAPED FOR ANDROID</text>
+</svg>

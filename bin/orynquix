@@ -24,6 +24,12 @@ source "$APP_ROOT/installer/device.sh"
 source "$APP_ROOT/installer/desktop.sh"
 # shellcheck source=../installer/vnc.sh
 source "$APP_ROOT/installer/vnc.sh"
+# shellcheck source=../installer/access.sh
+source "$APP_ROOT/installer/access.sh"
+# shellcheck source=../installer/apps.sh
+source "$APP_ROOT/installer/apps.sh"
+# shellcheck source=../installer/theme.sh
+source "$APP_ROOT/installer/theme.sh"
 
 cli_help() {
     cat <<'EOF'
@@ -38,19 +44,32 @@ Desktop commands:
   orynquix sessions        Show the managed session table
   orynquix passwd          Change the VNC password securely
   orynquix resolution [WIDTHxHEIGHT]
+  orynquix ui-scale [1|1.25|1.5|2]
+  orynquix theme [dark|light]
   orynquix kill-vnc        Safely stop the tracked VNC process
+  orynquix open            Start and open the browser-based desktop
 
-Foundation commands:
+Application commands:
+  orynquix apps            Show installed application status
+  orynquix install PKG...  Install validated Ubuntu package names
+  orynquix remove PKG...   Remove validated Ubuntu package names
+  orynquix search QUERY    Search Ubuntu package metadata
+  orynquix code [PATH]     Launch VS Code in the desktop
+  orynquix code-server     Run code-server on 127.0.0.1:8080
+  orynquix firefox [URL]   Launch Firefox in the desktop
+  orynquix chromium [URL]  Launch Chromium when a compatible build exists
+
+System commands:
   orynquix enter           Enter Ubuntu as the configured standard user
   orynquix info            Show installed Orynquix and Ubuntu information
   orynquix device          Detect the current Android device again
   orynquix doctor          Diagnose installed foundation and desktop components
-  orynquix logs [install|vnc]
+  orynquix logs [install|vnc|web]
   orynquix version         Show the Orynquix version
   orynquix help            Show this help
 
-Application, audio, backup, update, and targeted repair commands are delivered
-only after their later implementations pass the quality gates.
+Audio, backup, update, and targeted repair commands are delivered only after
+their later implementations pass the quality gates.
 EOF
 }
 
@@ -62,7 +81,16 @@ load_cli_config() {
     ORYNQUIX_USERNAME=$(config_get user name)
     ORYNQUIX_PROFILE=$(config_get system profile)
     ORYNQUIX_RESOLUTION=$(config_get vnc resolution)
-    validate_username "$ORYNQUIX_USERNAME" && validate_profile "$ORYNQUIX_PROFILE" && validate_resolution "$ORYNQUIX_RESOLUTION" || {
+    ORYNQUIX_VIEWER=$(config_get access viewer || true)
+    ORYNQUIX_BROWSER=$(config_get applications browser || true)
+    ORYNQUIX_EDITOR=$(config_get applications editor || true)
+    ORYNQUIX_DEV_TOOLS=$(config_get applications development_tools || true)
+    ORYNQUIX_UI_SCALE=$(config_get desktop ui_scale || true)
+    ORYNQUIX_VIEWER=${ORYNQUIX_VIEWER:-vnc}
+    validate_username "$ORYNQUIX_USERNAME" && validate_profile "$ORYNQUIX_PROFILE" &&
+        validate_resolution "$ORYNQUIX_RESOLUTION" && validate_viewer_choice "$ORYNQUIX_VIEWER" &&
+        validate_browser_choice "$ORYNQUIX_BROWSER" && validate_editor_choice "$ORYNQUIX_EDITOR" &&
+        validate_dev_tools_choice "$ORYNQUIX_DEV_TOOLS" && validate_ui_scale "$ORYNQUIX_UI_SCALE" || {
         log_error 'The Orynquix configuration is invalid. Refusing to use it.'
         return 1
     }
@@ -108,11 +136,14 @@ cmd_info() {
     print_kv User "$ORYNQUIX_USERNAME"
     print_kv Profile "$ORYNQUIX_PROFILE"
     print_kv Resolution "$ORYNQUIX_RESOLUTION"
+    local viewer
+    viewer=$(config_get access viewer || true)
+    print_kv 'Desktop access' "${viewer:-vnc}"
     local session_state='Stopped'
     vnc_status >/dev/null 2>&1 && session_state='Running'
     print_kv Desktop XFCE
     print_kv VNC "$session_state"
-    print_kv Status 'Phase 2 installed'
+    print_kv Status 'V3.2 desktop platform installed'
 }
 
 cmd_device() {
@@ -145,6 +176,9 @@ cmd_doctor() {
     doctor_check 'Orynquix marker' run_in_ubuntu test -r /etc/orynquix-release || failures=$((failures + 1))
     doctor_check 'XFCE desktop' verify_desktop || failures=$((failures + 1))
     doctor_check 'TigerVNC configuration' verify_vnc_configuration || failures=$((failures + 1))
+    doctor_check 'Desktop access' verify_desktop_access || failures=$((failures + 1))
+    doctor_check 'Selected applications' verify_selected_applications || failures=$((failures + 1))
+    doctor_check 'Orynquix appearance' verify_orynquix_appearance || failures=$((failures + 1))
     doctor_check 'Configuration' validate_resolution "$ORYNQUIX_RESOLUTION" || failures=$((failures + 1))
     doctor_check 'CLI executable' test -x "$bin_dir/orynquix" || failures=$((failures + 1))
     printf '\n%d issue(s) detected.\n' "$failures"
@@ -152,7 +186,7 @@ cmd_doctor() {
 }
 
 cmd_logs() {
-    (( $# <= 1 )) || { log_error 'Usage: orynquix logs [install|vnc]'; return 64; }
+    (( $# <= 1 )) || { log_error 'Usage: orynquix logs [install|vnc|web]'; return 64; }
     local topic=${1:-install} file
     case "$topic" in
         install) file="$ORYNQUIX_LOG_DIR/install.log" ;;
@@ -160,6 +194,12 @@ cmd_logs() {
             load_cli_config
             require_termux_host
             vnc_backend log
+            return
+            ;;
+        web)
+            load_cli_config
+            require_termux_host
+            web_backend log
             return
             ;;
         *) log_error "Unknown log: $topic"; return 64 ;;
@@ -176,23 +216,29 @@ cmd_start() {
     (( $# == 0 )) || { log_error 'Usage: orynquix start'; return 64; }
     require_termux_host
     load_cli_config
-    verify_vnc_configuration || { log_error 'VNC configuration is incomplete. Run orynquix doctor.'; return 1; }
-    vnc_start
+    verify_vnc_configuration && verify_desktop_access || {
+        log_error 'Desktop access is incomplete. Run orynquix doctor.'
+        return 1
+    }
+    desktop_start
 }
 
 cmd_stop() {
     (( $# == 0 )) || { log_error 'Usage: orynquix stop'; return 64; }
     require_termux_host
     load_cli_config
-    vnc_stop
+    desktop_stop
 }
 
 cmd_restart() {
     (( $# == 0 )) || { log_error 'Usage: orynquix restart'; return 64; }
     require_termux_host
     load_cli_config
-    verify_vnc_configuration || { log_error 'VNC configuration is incomplete. Run orynquix doctor.'; return 1; }
-    vnc_restart
+    verify_vnc_configuration && verify_desktop_access || {
+        log_error 'Desktop access is incomplete. Run orynquix doctor.'
+        return 1
+    }
+    desktop_restart
 }
 
 cmd_status() {
@@ -200,7 +246,7 @@ cmd_status() {
     require_termux_host
     load_cli_config
     load_vnc_settings
-    local output rc=0 state pid display port resolution localhost
+    local output rc=0 state pid display port resolution localhost web_output web_state web_port
     output=$(vnc_backend status) || rc=$?
     state=$(awk -F= '$1=="state" {print $2}' <<<"$output")
     pid=$(awk -F= '$1=="pid" {print $2}' <<<"$output")
@@ -216,6 +262,18 @@ cmd_status() {
     print_kv Resolution "${resolution:-$ORYNQUIX_VNC_RESOLUTION}"
     print_kv 'Localhost only' "${localhost:-true}"
     (( rc == 0 )) && printf '\nConnect to 127.0.0.1:%s\n' "${port:-$ORYNQUIX_VNC_PORT}"
+    load_access_settings
+    if browser_access_enabled; then
+        web_output=$(web_backend status 2>/dev/null) || true
+        web_state=$(awk -F= '$1=="state" {print $2}' <<<"$web_output")
+        web_port=$(awk -F= '$1=="web_port" {print $2}' <<<"$web_output")
+        print_kv 'Browser access' "${web_state:-stopped}"
+        if [[ "$web_state" == running ]]; then
+            printf 'Open http://127.0.0.1:%s/vnc.html?autoconnect=true&resize=scale\n' "${web_port:-$ORYNQUIX_WEB_PORT}"
+        else
+            rc=3
+        fi
+    fi
     return "$rc"
 }
 
@@ -234,6 +292,15 @@ cmd_sessions() {
     printf '%-9s %-8s %-8s %-8s %-12s\n' STATE PID DISPLAY PORT RESOLUTION
     printf '%-9s %-8s %-8s %-8s %-12s\n' "${state:-unknown}" "${pid:--}" \
         "${display:-:$ORYNQUIX_VNC_DISPLAY}" "${port:-$ORYNQUIX_VNC_PORT}" "${resolution:-$ORYNQUIX_VNC_RESOLUTION}"
+    load_access_settings
+    if browser_access_enabled; then
+        local web_output web_state web_pid web_port
+        web_output=$(web_backend status 2>/dev/null) || true
+        web_state=$(awk -F= '$1=="state" {print $2}' <<<"$web_output")
+        web_pid=$(awk -F= '$1=="pid" {print $2}' <<<"$web_output")
+        web_port=$(awk -F= '$1=="web_port" {print $2}' <<<"$web_output")
+        printf '%-9s %-8s %-8s %-8s %-12s\n' "${web_state:-stopped}" "${web_pid:--}" web "${web_port:-$ORYNQUIX_WEB_PORT}" noVNC
+    fi
     return "$rc"
 }
 
@@ -277,6 +344,184 @@ cmd_resolution() {
     vnc_set_resolution "$resolution"
 }
 
+cmd_ui_scale() {
+    (( $# == 1 )) || { log_error 'Usage: orynquix ui-scale [1|1.25|1.5|2]'; return 64; }
+    validate_ui_scale "$1" || { log_error 'UI scale must be 1, 1.25, 1.5, or 2.'; return 64; }
+    require_termux_host
+    load_cli_config
+    ini_set_value "$ORYNQUIX_CONFIG_FILE" desktop ui_scale "$1"
+    ORYNQUIX_UI_SCALE=$1
+    if ! write_appearance_user_config; then
+        cp -p -- "${ORYNQUIX_CONFIG_FILE}.previous" "$ORYNQUIX_CONFIG_FILE"
+        log_error 'Unable to update the Ubuntu appearance configuration; the host configuration was rolled back.'
+        return 1
+    fi
+    if vnc_status >/dev/null 2>&1; then apply_appearance_live; fi
+    log_success "UI scale changed to $1"
+}
+
+cmd_theme() {
+    (( $# == 1 )) || { log_error 'Usage: orynquix theme [dark|light]'; return 64; }
+    local theme
+    case "$1" in dark) theme=orynquix-dark ;; light) theme=orynquix-light ;;
+        *) log_error 'Theme must be dark or light.'; return 64 ;; esac
+    require_termux_host
+    load_cli_config
+    ini_set_value "$ORYNQUIX_CONFIG_FILE" desktop theme "$theme"
+    if ! write_appearance_user_config; then
+        cp -p -- "${ORYNQUIX_CONFIG_FILE}.previous" "$ORYNQUIX_CONFIG_FILE"
+        log_error 'Unable to update the Ubuntu appearance configuration; the host configuration was rolled back.'
+        return 1
+    fi
+    if vnc_status >/dev/null 2>&1; then apply_appearance_live; fi
+    log_success "Theme changed to $1"
+}
+
+ubuntu_command_exists() {
+    local command_name=$1
+    run_in_ubuntu /bin/sh -c 'command -v "$1" >/dev/null 2>&1' orynquix-command-check "$command_name"
+}
+
+print_app_status() {
+    local label=$1 command_name=$2 state='Not installed'
+    ubuntu_command_exists "$command_name" && state='Installed'
+    print_kv "$label" "$state"
+}
+
+cmd_apps() {
+    (( $# == 0 )) || { log_error 'Usage: orynquix apps'; return 64; }
+    require_termux_host
+    load_cli_config
+    printf '%sORYNQUIX APPLICATIONS%s\n\n' "$C_BOLD" "$C_RESET"
+    print_app_status Firefox orynquix-firefox
+    print_app_status 'VS Code' orynquix-code
+    print_app_status code-server code-server
+    print_app_status Git git
+    print_app_status Python python3
+    print_app_status Node.js node
+    print_app_status Java java
+    print_app_status GCC gcc
+    print_app_status CMake cmake
+    print_app_status Clang clang
+    print_app_status Neovim nvim
+    print_app_status PostgreSQL psql
+}
+
+validate_package_name() {
+    [[ "${1-}" =~ ^[a-z0-9][a-z0-9+.-]{0,127}$ ]]
+}
+
+validate_package_arguments() {
+    local package
+    (( $# > 0 )) || return 1
+    for package in "$@"; do validate_package_name "$package" || return 1; done
+}
+
+cmd_install() {
+    validate_package_arguments "$@" || { log_error 'Usage: orynquix install PACKAGE...'; return 64; }
+    require_termux_host
+    load_cli_config
+    run_in_ubuntu /usr/bin/env DEBIAN_FRONTEND=noninteractive /usr/bin/apt-get install -y "$@"
+}
+
+cmd_remove() {
+    validate_package_arguments "$@" || { log_error 'Usage: orynquix remove PACKAGE...'; return 64; }
+    require_termux_host
+    load_cli_config
+    run_in_ubuntu /usr/bin/env DEBIAN_FRONTEND=noninteractive /usr/bin/apt-get remove -y "$@"
+}
+
+cmd_search() {
+    (( $# == 1 )) && [[ "$1" =~ ^[a-zA-Z0-9][a-zA-Z0-9+._[:space:]-]{0,79}$ ]] || {
+        log_error 'Usage: orynquix search QUERY'
+        return 64
+    }
+    require_termux_host
+    load_cli_config
+    run_in_ubuntu /usr/bin/apt-cache search "$1"
+}
+
+launch_desktop_application() {
+    local executable=$1
+    shift
+    load_vnc_settings
+    ubuntu_command_exists "$executable" || {
+        log_error "Application is not installed: $executable"
+        return 1
+    }
+    run_as_ubuntu_user "$ORYNQUIX_USERNAME" /usr/bin/env \
+        HOME="$(vnc_home)" USER="$ORYNQUIX_USERNAME" LOGNAME="$ORYNQUIX_USERNAME" \
+        DISPLAY=":$ORYNQUIX_VNC_DISPLAY" /bin/sh -c '
+            set -eu
+            executable=$1
+            shift
+            log_dir="$HOME/.local/share/orynquix/logs"
+            mkdir -p "$log_dir"
+            nohup "$executable" "$@" >>"$log_dir/apps.log" 2>&1 </dev/null &
+        ' orynquix-launch "$executable" "$@"
+}
+
+cmd_code() {
+    require_termux_host
+    load_cli_config
+    vnc_status >/dev/null 2>&1 || { log_error 'Start the desktop first: orynquix start'; return 1; }
+    launch_desktop_application orynquix-code "$@"
+    log_success 'VS Code launch requested'
+}
+
+cmd_firefox() {
+    (( $# <= 1 )) || { log_error 'Usage: orynquix firefox [HTTPS_URL]'; return 64; }
+    [[ -z "${1-}" || "$1" == https://* ]] || { log_error 'Firefox URL must use HTTPS.'; return 64; }
+    require_termux_host
+    load_cli_config
+    vnc_status >/dev/null 2>&1 || { log_error 'Start the desktop first: orynquix start'; return 1; }
+    launch_desktop_application orynquix-firefox "$@"
+    log_success 'Firefox launch requested'
+}
+
+cmd_chromium() {
+    (( $# <= 1 )) || { log_error 'Usage: orynquix chromium [HTTPS_URL]'; return 64; }
+    [[ -z "${1-}" || "$1" == https://* ]] || { log_error 'Chromium URL must use HTTPS.'; return 64; }
+    require_termux_host
+    load_cli_config
+    vnc_status >/dev/null 2>&1 || { log_error 'Start the desktop first: orynquix start'; return 1; }
+    local executable
+    if ubuntu_command_exists chromium; then executable=chromium
+    elif ubuntu_command_exists chromium-browser; then executable=chromium-browser
+    else
+        log_error 'No compatible Chromium build is installed. Use: orynquix firefox'
+        return 1
+    fi
+    launch_desktop_application "$executable" --no-sandbox --disable-dev-shm-usage "$@"
+    log_success 'Chromium launch requested'
+}
+
+cmd_code_server() {
+    (( $# == 0 )) || { log_error 'Usage: orynquix code-server'; return 64; }
+    require_termux_host
+    load_cli_config
+    ubuntu_command_exists code-server || { log_error 'code-server is not installed.'; return 1; }
+    printf 'code-server will run on http://127.0.0.1:8080\n'
+    printf 'Keep this Termux session open; press Ctrl+C to stop it.\n\n'
+    exec proot-distro login --user "$ORYNQUIX_USERNAME" "$ORYNQUIX_DISTRIBUTION" -- \
+        /usr/bin/env HOME="/home/$ORYNQUIX_USERNAME" USER="$ORYNQUIX_USERNAME" \
+        LOGNAME="$ORYNQUIX_USERNAME" code-server --bind-addr 127.0.0.1:8080 --disable-telemetry
+}
+
+cmd_open() {
+    (( $# == 0 )) || { log_error 'Usage: orynquix open'; return 64; }
+    require_termux_host
+    load_cli_config
+    load_access_settings
+    browser_access_enabled || {
+        log_error 'Browser desktop access was not selected. Re-run the installer with --reconfigure.'
+        return 1
+    }
+    desktop_start
+    local url="http://127.0.0.1:$ORYNQUIX_WEB_PORT/vnc.html?autoconnect=true&resize=scale"
+    if command -v termux-open-url >/dev/null 2>&1; then termux-open-url "$url"; else printf 'Open: %s\n' "$url"; fi
+}
+
 interactive_menu() {
     local choice
     while true; do
@@ -289,10 +534,12 @@ interactive_menu() {
         printf '  6. Change Resolution\n'
         printf '  7. System Doctor\n'
         printf '  8. Device Information\n'
-        printf '  9. Logs\n'
-        printf ' 10. Help\n'
-        printf ' 11. Exit\n\n'
-        read -r -p 'Choose [1-11]: ' choice
+        printf '  9. Applications\n'
+        printf ' 10. Open Browser Desktop\n'
+        printf ' 11. Logs\n'
+        printf ' 12. Help\n'
+        printf ' 13. Exit\n\n'
+        read -r -p 'Choose [1-13]: ' choice
         case "$choice" in
             1) cmd_start ;;
             2) cmd_stop ;;
@@ -302,10 +549,12 @@ interactive_menu() {
             6) cmd_resolution ;;
             7) cmd_doctor || true ;;
             8) cmd_device ;;
-            9) cmd_logs install ;;
-            10) cli_help ;;
-            11) return 0 ;;
-            *) printf 'Choose a number from 1 to 11.\n' ;;
+            9) cmd_apps ;;
+            10) cmd_open ;;
+            11) cmd_logs install ;;
+            12) cli_help ;;
+            13) return 0 ;;
+            *) printf 'Choose a number from 1 to 13.\n' ;;
         esac
         printf '\nPress Enter to continue...'; read -r _
     done
@@ -323,6 +572,17 @@ main() {
         sessions) cmd_sessions "$@" ;;
         passwd) cmd_passwd "$@" ;;
         resolution) cmd_resolution "$@" ;;
+        ui-scale) cmd_ui_scale "$@" ;;
+        theme) cmd_theme "$@" ;;
+        open) cmd_open "$@" ;;
+        apps) cmd_apps "$@" ;;
+        install) cmd_install "$@" ;;
+        remove) cmd_remove "$@" ;;
+        search) cmd_search "$@" ;;
+        code) cmd_code "$@" ;;
+        code-server) cmd_code_server "$@" ;;
+        firefox) cmd_firefox "$@" ;;
+        chromium) cmd_chromium "$@" ;;
         enter) cmd_enter "$@" ;;
         info) cmd_info "$@" ;;
         device) cmd_device "$@" ;;

@@ -4,10 +4,36 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+## [3.2.0-alpha] - 2026-09-04
+
+### Fixed
+
+- Detects the current OCI-based `proot-distro` v5 interface even when `proot-distro list` advertises no Ubuntu alias.
+- Provisions current releases as a named `ubuntu:24.04` container while keeping the legacy `ubuntu` alias path.
+- Preserves and resumes verified installation state from the earlier `0.2.1-alpha` build.
+
+### Added
+
+- VNC app, Android browser/noVNC, or combined desktop-access selection.
+- Localhost-only noVNC proxy with PID/start-time ownership validation and safe stale-state recovery.
+- Real Firefox, VS Code, code-server, and development-tool installers with post-install checks.
+- Automatic VS Code-to-code-server and Chromium-to-Firefox compatibility fallbacks.
+- Original Orynquix wallpaper, XFCE appearance configuration, and verified desktop launchers.
+- Expanded application-management and launch commands in the Termux CLI.
+- Current/legacy provider compatibility tests and browser-session safety tests.
+
+### Known limitations
+
+- A real ARM64 Termux device acceptance run and visual desktop check are still required before this alpha can be marked device-validated.
+- Android storage/audio integration, Control Center, backup, update, and broader targeted repairs remain future gates.
+
+## [3.1.0-alpha]
+
 ### Fixed
 
 - Interactive preset, browser, editor, and development-tool menus now return the selected value to their callers under `set -u`.
 - Menu numbers are normalized as base-10 input, preventing leading-zero arithmetic errors.
+- The public version correctly identifies that build as V3.1 (`3.1.0-alpha`).
 
 ### Added
 
@@ -33,5 +59,5 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 ### Known limitations
 
 - Requires ARM64 Termux device acceptance testing.
-- Requires a real ARM64 Termux acceptance run before `0.2.1-alpha` can be tagged as device-validated.
+- Requires a real ARM64 Termux acceptance run before `3.1.0-alpha` can be tagged as device-validated.
 - Visual identity, application compatibility, Android storage/audio integration, and Control Center remain later phases.

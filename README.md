@@ -8,7 +8,7 @@ Orynquix is building a polished Ubuntu development environment for Android using
 
 ## Current release status
 
-V3.1 (`0.2.1-alpha`) preserves the tested Phase 1 foundation and Phase 2 desktop engine, with a corrected interactive component selector:
+V3.2 (`3.2.0-alpha`) fixes the current `proot-distro` v5 provisioning break while retaining compatibility with the legacy Ubuntu-alias model. It adds real selected-application installation, an original Orynquix XFCE appearance, and a choice of VNC-app, Android-browser, or both access methods.
 
 - runtime device, architecture, CPU, memory, storage, Android, kernel, and Termux detection;
 - device-adaptive Lite, Standard, and Developer recommendations;
@@ -18,7 +18,7 @@ V3.1 (`0.2.1-alpha`) preserves the tested Phase 1 foundation and Phase 2 desktop
 - a separate coding-tools decision and Recommended / Full / Custom / Skip submenu;
 - quiet package operations with truthful verified-stage progress and private detailed logs;
 - safe resume state and stale-lock recovery;
-- Ubuntu-only `proot-distro` provider discovery and actual `/etc/os-release` reporting;
+- current OCI-image and legacy-alias `proot-distro` discovery, Ubuntu-only provisioning, and actual `/etc/os-release` reporting;
 - standard Ubuntu user creation with password-protected `sudo`;
 - validated XFCE, terminal, file manager, D-Bus, and supporting desktop packages;
 - TigerVNC on the fixed managed display `:1`, bound to localhost by default;
@@ -26,9 +26,13 @@ V3.1 (`0.2.1-alpha`) preserves the tested Phase 1 foundation and Phase 2 desktop
 - a generated XFCE xstartup with a fresh D-Bus session and private XDG runtime directory;
 - exact PID and process-start identity tracking, safe stale-state recovery, and guarded shutdown;
 - an installed Termux-side `orynquix` CLI with desktop lifecycle, `enter`, `info`, `device`, `doctor`, and logs;
+- localhost-only noVNC/browser access with its own exact-PID process registry;
+- selected Firefox, VS Code, code-server, and development-tool installation with post-install verification;
+- a Snap-free Firefox fallback when a compatible Chromium package is unavailable;
+- an original Orynquix wallpaper, XFCE theme settings, and real desktop launchers;
 - atomic configuration, input validation, nested-PRoot prevention, and zero telemetry.
 
-Visual identity, selected applications, storage/audio integration, Control Center, backup, update, and later targeted repair commands are intentionally not claimed yet. See [current limitations](docs/LIMITATIONS.md).
+Android storage/audio integration, Control Center, backup, update, and broader targeted repair commands remain gated. See [current limitations](docs/LIMITATIONS.md).
 
 ## Requirements
 
@@ -79,7 +83,18 @@ orynquix status
 orynquix sessions
 orynquix passwd
 orynquix resolution 1600x900
+orynquix ui-scale 1.25
+orynquix theme light
+orynquix open
+orynquix apps
+orynquix install PACKAGE
+orynquix remove PACKAGE
+orynquix search QUERY
+orynquix firefox https://example.com
+orynquix code
+orynquix code-server
 orynquix logs vnc
+orynquix logs web
 orynquix enter
 orynquix info
 orynquix device
@@ -89,13 +104,14 @@ orynquix version
 orynquix help
 ```
 
-After `orynquix start`, connect the Android VNC viewer to `127.0.0.1:5901`. Later commands are added only when their backends and recovery paths pass their phase quality gates.
+For VNC-app access, connect to `127.0.0.1:5901` after `orynquix start`. For browser access, run `orynquix open` or open the localhost URL printed by `orynquix start`. Browser access is still VNC transported through a local noVNC/WebSocket proxy; it is not a public web service.
 
 ## Documentation
 
 - [Installer choices and quiet output](docs/INSTALLER_UX.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [TigerVNC desktop](docs/VNC.md)
+- [Applications and compatibility](docs/APPLICATIONS.md)
 - [Security design](docs/SECURITY.md)
 - [Limitations](docs/LIMITATIONS.md)
 - [Development and tests](docs/DEVELOPMENT.md)
@@ -105,7 +121,9 @@ After `orynquix start`, connect the Android VNC viewer to `127.0.0.1:5901`. Late
 ```bash
 bash tests/run.sh
 bash tests/integration-mock.sh
+bash tests/provider-compat.sh
 bash tests/vnc-session.sh
+bash tests/web-session.sh
 bash tests/static-safety.sh
 ```
 

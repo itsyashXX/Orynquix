@@ -6,18 +6,26 @@ discover_ubuntu_provider() {
         return 0
     fi
     proot_distro_available || { log_error 'proot-distro is not installed.'; return 1; }
-    ubuntu_provider_available || {
-        log_error 'The installed proot-distro does not advertise an Ubuntu provider.'
+    select_ubuntu_install_source || {
+        log_error 'The installed proot-distro cannot provision an Ubuntu container.'
         log_error 'Orynquix will not silently install Debian.'
         return 1
     }
     ORYNQUIX_PROOT_DISTRO_VERSION=$(proot-distro --version 2>/dev/null | head -n1 || true)
-    log_success "Ubuntu provider found (${ORYNQUIX_PROOT_DISTRO_VERSION:-version unavailable})"
+    log_success "Ubuntu provisioning mode: $ORYNQUIX_PROOT_MODE (${ORYNQUIX_PROOT_DISTRO_VERSION:-version unavailable})"
+    if [[ "$ORYNQUIX_PROOT_MODE" == oci ]]; then
+        log_success "Selected official image: $ORYNQUIX_UBUNTU_IMAGE"
+        if [[ "$ORYNQUIX_UBUNTU_RELEASE" != "$ORYNQUIX_PREFERRED_UBUNTU" ]]; then
+            log_warn "Ubuntu $ORYNQUIX_UBUNTU_RELEASE is selected for the tested XFCE/PRoot path; $ORYNQUIX_PREFERRED_UBUNTU remains available through --ubuntu-release."
+        fi
+    else
+        log_warn 'Legacy proot-distro controls the Ubuntu rootfs release; the installed version will be verified after extraction.'
+    fi
 }
 
 verify_ubuntu_provider() {
     [[ "$ORYNQUIX_DRY_RUN" == 1 ]] && return 0
-    proot_distro_available && ubuntu_provider_available
+    proot_distro_available && select_ubuntu_install_source
 }
 
 install_ubuntu_rootfs() {
@@ -28,8 +36,13 @@ install_ubuntu_rootfs() {
     if ubuntu_rootfs_works; then
         log_success 'Existing Ubuntu root filesystem is healthy; reusing it'
     else
-        run_visible_or_logged 'Installing Ubuntu root filesystem' "$ORYNQUIX_INSTALL_LOG" \
-            proot-distro install "$ORYNQUIX_DISTRIBUTION"
+        if [[ "$ORYNQUIX_PROOT_MODE" == oci ]]; then
+            run_visible_or_logged "Installing Ubuntu $ORYNQUIX_UBUNTU_RELEASE root filesystem" "$ORYNQUIX_INSTALL_LOG" \
+                proot-distro install "$ORYNQUIX_UBUNTU_IMAGE" --name "$ORYNQUIX_DISTRIBUTION"
+        else
+            run_visible_or_logged 'Installing Ubuntu root filesystem' "$ORYNQUIX_INSTALL_LOG" \
+                proot-distro install "$ORYNQUIX_DISTRIBUTION"
+        fi
     fi
     read_ubuntu_os_release
     log_success "Verified ${ORYNQUIX_ACTUAL_UBUNTU_NAME}"

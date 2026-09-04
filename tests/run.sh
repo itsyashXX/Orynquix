@@ -61,6 +61,8 @@ check 'rejects an undersized resolution' assert_false validate_resolution 320x20
 check 'rejects resolution shell text' assert_false validate_resolution '1280x720;id'
 check 'accepts a supported UI scale' validate_ui_scale 1.25
 check 'rejects an arbitrary UI scale' assert_false validate_ui_scale 1.3
+check 'accepts the light Orynquix theme' validate_theme_choice orynquix-light
+check 'rejects an unknown theme' assert_false validate_theme_choice neon
 check 'accepts display one' validate_display_number 1
 check 'rejects display zero' assert_false validate_display_number 0
 check 'accepts VNC depth 24' validate_depth 24
@@ -100,7 +102,7 @@ if HOME="$dry_home" NO_COLOR=1 bash "$PROJECT_ROOT/install.sh" --dry-run --non-i
 else
     tests_run=$((tests_run + 1)); fail 'non-interactive dry-run completes'
 fi
-check 'dry-run reaches exactly 100 percent' assert_contains "$dry_output" '[13/13 · 100%]'
+check 'dry-run reaches exactly 100 percent' assert_contains "$dry_output" '[16/16 · 100%]'
 check 'dry-run is labelled honestly' assert_contains "$dry_output" 'DRY RUN COMPLETE'
 check 'dry-run leaves HOME unchanged' assert_file_absent "$dry_home/.orynquix"
 
@@ -147,6 +149,12 @@ EOF
 else
     tests_run=$((tests_run + 1)); fail 'interactive coding-tools selection returns Full to its caller'
 fi
+ORYNQUIX_VIEWER=''
+if choose_viewer_interactive >>"$menu_output" <<<"2" && [[ "$ORYNQUIX_VIEWER" == browser ]]; then
+    tests_run=$((tests_run + 1)); pass 'interactive desktop-access selection returns Browser to its caller'
+else
+    tests_run=$((tests_run + 1)); fail 'interactive desktop-access selection returns Browser to its caller'
+fi
 
 invalid_output="$TEST_TMP/invalid-output"
 tests_run=$((tests_run + 1))
@@ -156,7 +164,7 @@ else
     pass 'invalid preset exits non-zero'
 fi
 
-check 'CLI reports its version' bash -c '[[ "$1" == "Orynquix 0.2.1-alpha" ]]' _ "$($PROJECT_ROOT/bin/orynquix version)"
+check 'CLI reports its version' bash -c '[[ "$1" == "Orynquix 3.2.0-alpha" ]]' _ "$($PROJECT_ROOT/bin/orynquix version)"
 check 'CLI version command rejects extra arguments' bash -c '! "$1" version unexpected >/dev/null 2>&1' _ "$PROJECT_ROOT/bin/orynquix"
 
 printf '1..%d\n' "$tests_run"

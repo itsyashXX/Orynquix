@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 
-readonly ORYNQUIX_VERSION="0.2.1-alpha"
-readonly ORYNQUIX_PRODUCT_REVISION="V3.1"
-readonly ORYNQUIX_SCHEMA_VERSION="1"
+readonly ORYNQUIX_VERSION="3.2.0-alpha"
+readonly ORYNQUIX_PRODUCT_REVISION="V3.2"
+readonly ORYNQUIX_SCHEMA_VERSION="2"
 readonly ORYNQUIX_DISTRIBUTION="ubuntu"
 readonly ORYNQUIX_PREFERRED_UBUNTU="26.04"
 readonly ORYNQUIX_DEFAULT_USER="orynquix"
 readonly ORYNQUIX_DEFAULT_DISPLAY="1"
 readonly ORYNQUIX_DEFAULT_RESOLUTION="1280x720"
 readonly ORYNQUIX_DEFAULT_DEPTH="24"
+readonly ORYNQUIX_DEFAULT_WEB_PORT="6080"
 readonly ORYNQUIX_DEV_TOOL_IDS='git,github-cli,python,node,java,cpp,cmake,clang,jupyter,databases,neovim'
 
 ORYNQUIX_PROJECT_ROOT="${ORYNQUIX_PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)}"
@@ -31,6 +32,10 @@ ORYNQUIX_STORAGE="${ORYNQUIX_STORAGE:-auto}"
 ORYNQUIX_RESOLUTION="${ORYNQUIX_RESOLUTION:-}"
 ORYNQUIX_COMPOSITOR="${ORYNQUIX_COMPOSITOR:-auto}"
 ORYNQUIX_UI_SCALE="${ORYNQUIX_UI_SCALE:-1.0}"
+ORYNQUIX_UBUNTU_RELEASE="${ORYNQUIX_UBUNTU_RELEASE:-24.04}"
+ORYNQUIX_PROOT_MODE="${ORYNQUIX_PROOT_MODE:-}"
+ORYNQUIX_UBUNTU_IMAGE="${ORYNQUIX_UBUNTU_IMAGE:-}"
+ORYNQUIX_VIEWER="${ORYNQUIX_VIEWER:-}"
 
 ORYNQUIX_VERBOSE="${ORYNQUIX_VERBOSE:-0}"
 ORYNQUIX_QUIET="${ORYNQUIX_QUIET:-0}"
@@ -72,6 +77,18 @@ validate_resolution() {
 
 validate_ui_scale() {
     validate_enum "${1-}" 1 1.0 1.25 1.5 2 2.0
+}
+
+validate_theme_choice() {
+    validate_enum "${1-}" orynquix-dark orynquix-light
+}
+
+validate_ubuntu_release() {
+    validate_enum "${1-}" 24.04 26.04
+}
+
+validate_viewer_choice() {
+    validate_enum "${1-}" vnc browser both
 }
 
 validate_display_number() {

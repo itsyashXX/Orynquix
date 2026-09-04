@@ -20,4 +20,7 @@ if command -v xrdb >/dev/null 2>&1 && [ -r "$HOME/.Xresources" ]; then
     xrdb "$HOME/.Xresources"
 fi
 
+if [ -x /usr/local/libexec/orynquix/start-xfce ]; then
+    exec dbus-launch --exit-with-session /usr/local/libexec/orynquix/start-xfce
+fi
 exec dbus-launch --exit-with-session xfce4-session

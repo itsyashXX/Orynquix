@@ -22,7 +22,11 @@ jobs:
         run: bash tests/run.sh
       - name: Mock installer integration test
         run: bash tests/integration-mock.sh
+      - name: proot-distro compatibility tests
+        run: bash tests/provider-compat.sh
       - name: VNC session safety tests
         run: bash tests/vnc-session.sh
+      - name: Browser session safety tests
+        run: bash tests/web-session.sh
       - name: Static safety checks
         run: bash tests/static-safety.sh
