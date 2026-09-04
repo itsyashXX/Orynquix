@@ -34,7 +34,7 @@ command -v orynquix >/dev/null 2>&1 || {
 }
 
 printf 'ORYNQUIX V3 DEVICE ACCEPTANCE\n\n'
-check 'CLI reports version 0.2.0-alpha' bash -c '[[ "$(orynquix version)" == "Orynquix 0.2.0-alpha" ]]'
+check 'CLI reports version 0.2.1-alpha' bash -c '[[ "$(orynquix version)" == "Orynquix 0.2.1-alpha" ]]'
 check 'System doctor passes' orynquix doctor
 check 'Current device information can be detected' orynquix device
 check 'Runtime configuration is private' bash -c '[[ "$(stat -c %a "$HOME/.orynquix/config.ini")" == 600 ]]'

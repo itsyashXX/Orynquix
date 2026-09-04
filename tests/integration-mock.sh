@@ -157,12 +157,12 @@ first_output="$TEST_TMP/first-output"
 second_output="$TEST_TMP/second-output"
 run_install "$first_output"
 
-# Exercise an in-place V2-to-V3 refresh: completed stage state exists, while the
+# Exercise an in-place V3-to-V3.1 refresh: completed stage state exists, while the
 # installed CLI and Ubuntu marker identify the previous product release.
 installed_cli=$(readlink -f -- "$TEST_PREFIX/bin/orynquix")
-printf '#!/usr/bin/env bash\nprintf "Orynquix 0.1.0-alpha\\n"\n' >"$installed_cli"
+printf '#!/usr/bin/env bash\nprintf "Orynquix 0.2.0-alpha\\n"\n' >"$installed_cli"
 chmod +x "$installed_cli"
-printf 'NAME=Orynquix\nVERSION=0.1.0-alpha\nUBUNTU_VERSION=24.04\n' >"$MOCK_STATE/marker"
+printf 'NAME=Orynquix\nVERSION=0.2.0-alpha\nUBUNTU_VERSION=24.04\n' >"$MOCK_STATE/marker"
 run_install "$second_output"
 
 assert() {
@@ -181,15 +181,15 @@ assert 'provider fallback is reported honestly' grep -Fq 'current provider suppl
 assert 'package download chatter is absent from the terminal' test "$(grep -c 'mock package' "$first_output" || true)" -eq 0
 assert 'package output is retained in the private log' grep -Fq 'mock package line' "$TEST_HOME/.orynquix/logs/install.log"
 assert 'configuration records actual Ubuntu version' grep -Fxq 'actual_release=24.04' "$TEST_HOME/.orynquix/config.ini"
-assert 'configuration records the V3 product version' grep -Fxq 'product_version=0.2.0-alpha' "$TEST_HOME/.orynquix/config.ini"
+assert 'configuration records the V3.1 product version' grep -Fxq 'product_version=0.2.1-alpha' "$TEST_HOME/.orynquix/config.ini"
 assert 'configuration records selected browser' grep -Fxq 'browser=chromium' "$TEST_HOME/.orynquix/config.ini"
 assert 'standard Linux user was created' grep -Fxq testuser "$MOCK_STATE/user"
 assert 'Linux password passed through stdin reached chpasswd' test -f "$MOCK_STATE/password"
 assert 'all thirteen verified stages were persisted' test "$(wc -l <"$TEST_HOME/.orynquix/state/install-state")" -eq 13
-assert 'V2-to-V3 rerun reuses only the nine version-independent stable stages' test "$(grep -c 'Already complete and verified' "$second_output")" -eq 9
+assert 'V3-to-V3.1 rerun reuses only the nine version-independent stable stages' test "$(grep -c 'Already complete and verified' "$second_output")" -eq 9
 assert 'rerun displays freshly detected device information' grep -Fq 'ExampleCorp' "$second_output"
-assert 'V2-to-V3 rerun refreshes the Ubuntu product marker' grep -Fxq 'VERSION=0.2.0-alpha' "$MOCK_STATE/marker"
-assert 'installed CLI executes from the Termux prefix' test "$($TEST_PREFIX/bin/orynquix version)" = 'Orynquix 0.2.0-alpha'
+assert 'V3-to-V3.1 rerun refreshes the Ubuntu product marker' grep -Fxq 'VERSION=0.2.1-alpha' "$MOCK_STATE/marker"
+assert 'installed CLI executes from the Termux prefix' test "$($TEST_PREFIX/bin/orynquix version)" = 'Orynquix 0.2.1-alpha'
 assert 'runtime config is private' test "$(stat -c %a "$TEST_HOME/.orynquix/config.ini")" = 600
 assert 'installer state is private' test "$(stat -c %a "$TEST_HOME/.orynquix/state/install-state")" = 600
 

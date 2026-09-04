@@ -1,6 +1,6 @@
 # TigerVNC desktop
 
-Orynquix V3 uses the Ubuntu `tigervnc-standalone-server` package and the distribution-provided `tigervncserver` wrapper. Ubuntu 24.04 provides this package for ARM64 and includes `/usr/bin/Xtigervnc` and `/usr/bin/tigervncserver`.
+Orynquix V3.1 uses the Ubuntu `tigervnc-standalone-server` package and the distribution-provided `tigervncserver` wrapper. Ubuntu 24.04 provides this package for ARM64 and includes `/usr/bin/Xtigervnc` and `/usr/bin/tigervncserver`.
 
 The wrapper supports the options Orynquix uses: explicit display number, geometry, depth, localhost binding, security types, password file, RFB port, and custom xstartup. References:
 
@@ -20,7 +20,7 @@ Depth:         24
 Security type: VncAuth
 ```
 
-`VncAuth` is used only on the loopback interface. Orynquix V3 does not expose this unencrypted mode to the LAN. Future LAN support requires a separate explicit security design.
+`VncAuth` is used only on the loopback interface. Orynquix V3.1 does not expose this unencrypted mode to the LAN. Future LAN support requires a separate explicit security design.
 
 ## Commands
 

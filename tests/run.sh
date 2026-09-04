@@ -119,6 +119,35 @@ check 'custom plan records an editor skip' assert_contains "$custom_output" 'Edi
 check 'custom plan records selected coding groups' assert_contains "$custom_output" 'Development tools  custom:git,python'
 check 'custom dry-run leaves HOME unchanged' assert_file_absent "$custom_home/.orynquix"
 
+menu_output="$TEST_TMP/menu-output"
+ORYNQUIX_PROFILE=''
+if choose_profile_interactive >"$menu_output" <<<"2" && [[ "$ORYNQUIX_PROFILE" == complete ]]; then
+    tests_run=$((tests_run + 1)); pass 'interactive preset selection returns Complete to its caller'
+else
+    tests_run=$((tests_run + 1)); fail 'interactive preset selection returns Complete to its caller'
+fi
+ORYNQUIX_BROWSER=''
+if choose_browser_interactive >>"$menu_output" <<<"3" && [[ "$ORYNQUIX_BROWSER" == both ]]; then
+    tests_run=$((tests_run + 1)); pass 'interactive browser selection returns Both to its caller'
+else
+    tests_run=$((tests_run + 1)); fail 'interactive browser selection returns Both to its caller'
+fi
+ORYNQUIX_EDITOR=''
+if choose_editor_interactive >>"$menu_output" <<<"4" && [[ "$ORYNQUIX_EDITOR" == both ]]; then
+    tests_run=$((tests_run + 1)); pass 'interactive editor selection returns Both to its caller'
+else
+    tests_run=$((tests_run + 1)); fail 'interactive editor selection returns Both to its caller'
+fi
+ORYNQUIX_DEV_TOOLS=''
+if choose_dev_tools_interactive >>"$menu_output" <<'EOF' && [[ "$ORYNQUIX_DEV_TOOLS" == full ]]; then
+yes
+2
+EOF
+    tests_run=$((tests_run + 1)); pass 'interactive coding-tools selection returns Full to its caller'
+else
+    tests_run=$((tests_run + 1)); fail 'interactive coding-tools selection returns Full to its caller'
+fi
+
 invalid_output="$TEST_TMP/invalid-output"
 tests_run=$((tests_run + 1))
 if HOME="$dry_home" bash "$PROJECT_ROOT/install.sh" --dry-run --preset impossible >"$invalid_output" 2>&1; then
@@ -127,7 +156,7 @@ else
     pass 'invalid preset exits non-zero'
 fi
 
-check 'CLI reports its version' bash -c '[[ "$1" == "Orynquix 0.2.0-alpha" ]]' _ "$($PROJECT_ROOT/bin/orynquix version)"
+check 'CLI reports its version' bash -c '[[ "$1" == "Orynquix 0.2.1-alpha" ]]' _ "$($PROJECT_ROOT/bin/orynquix version)"
 check 'CLI version command rejects extra arguments' bash -c '! "$1" version unexpected >/dev/null 2>&1' _ "$PROJECT_ROOT/bin/orynquix"
 
 printf '1..%d\n' "$tests_run"

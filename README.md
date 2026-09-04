@@ -8,7 +8,7 @@ Orynquix is building a polished Ubuntu development environment for Android using
 
 ## Current release status
 
-V3 (`0.2.0-alpha`) preserves the tested Phase 1 foundation and adds the Phase 2 desktop engine:
+V3.1 (`0.2.1-alpha`) preserves the tested Phase 1 foundation and Phase 2 desktop engine, with a corrected interactive component selector:
 
 - runtime device, architecture, CPU, memory, storage, Android, kernel, and Termux detection;
 - device-adaptive Lite, Standard, and Developer recommendations;

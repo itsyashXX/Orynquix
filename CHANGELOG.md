@@ -4,6 +4,11 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 
 ## [Unreleased]
 
+### Fixed
+
+- Interactive preset, browser, editor, and development-tool menus now return the selected value to their callers under `set -u`.
+- Menu numbers are normalized as base-10 input, preventing leading-zero arithmetic errors.
+
 ### Added
 
 - Phase 1 modular installer foundation.
@@ -22,11 +27,11 @@ All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.
 - Safe start, stop, restart, status, session listing, password, resolution, and VNC log commands.
 - Targeted stale X lock, X socket, PID file, and session metadata recovery.
 - Mock VNC lifecycle integration tests and direct session safety tests.
-- Version-exact V2-to-V3 CLI and Ubuntu marker migration checks.
+- Version-exact V3-to-V3.1 CLI and Ubuntu marker migration checks.
 - PID-reuse-safe forced termination and non-zombie process validation.
 
 ### Known limitations
 
 - Requires ARM64 Termux device acceptance testing.
-- Requires a real ARM64 Termux acceptance run before `0.2.0-alpha` can be tagged as device-validated.
+- Requires a real ARM64 Termux acceptance run before `0.2.1-alpha` can be tagged as device-validated.
 - Visual identity, application compatibility, Android storage/audio integration, and Control Center remain later phases.

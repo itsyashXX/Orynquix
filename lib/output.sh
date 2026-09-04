@@ -104,14 +104,15 @@ prompt_yes_no() {
 prompt_menu() {
     local __result_var=$1 prompt=$2 default=$3
     shift 3
-    local choice option_count=$#
+    local __orynquix_menu_selection option_count=$#
     while true; do
         printf '\n%s\n' "$prompt"
         printf '%s\n' "$@"
-        read -r -p "Choose [$default]: " choice
-        choice=${choice:-$default}
-        if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= option_count )); then
-            printf -v "$__result_var" '%s' "$choice"
+        read -r -p "Choose [$default]: " __orynquix_menu_selection
+        __orynquix_menu_selection=${__orynquix_menu_selection:-$default}
+        if [[ "$__orynquix_menu_selection" =~ ^[0-9]{1,3}$ ]] &&
+            (( 10#$__orynquix_menu_selection >= 1 && 10#$__orynquix_menu_selection <= option_count )); then
+            printf -v "$__result_var" '%s' "$((10#$__orynquix_menu_selection))"
             return 0
         fi
         printf 'Choose a number from 1 to %d.\n' "$option_count"

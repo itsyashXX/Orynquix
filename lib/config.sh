@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-readonly ORYNQUIX_VERSION="0.2.0-alpha"
-readonly ORYNQUIX_PRODUCT_REVISION="V3"
+readonly ORYNQUIX_VERSION="0.2.1-alpha"
+readonly ORYNQUIX_PRODUCT_REVISION="V3.1"
 readonly ORYNQUIX_SCHEMA_VERSION="1"
 readonly ORYNQUIX_DISTRIBUTION="ubuntu"
 readonly ORYNQUIX_PREFERRED_UBUNTU="26.04"
