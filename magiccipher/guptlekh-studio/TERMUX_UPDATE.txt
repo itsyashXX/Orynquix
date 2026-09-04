@@ -1,6 +1,0 @@
-MagicCipher V5 update
-
-1. Extract this ZIP in Termux private storage.
-2. Run npm install && npm run build.
-3. Copy your existing .git folder into this project.
-4. git add . && git commit -m "Upgrade MagicCipher to V5" && git push origin main --force

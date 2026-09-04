@@ -1,0 +1,9 @@
+Orynquix Stage 1 Alpha 2 — Phone GUI
+Version: 0.1.0a2
+Branch: feat/stage-1-technical-proof
+Commit: 8d256f942a3f5c322513e2bc289b1441a44f6e36
+Built: 2026-09-02
+Python requirement: 3.12+
+Verification: 43 tests passed; lint passed; strict typing passed; 84.28% branch-aware coverage
+Primary interface: orynquix-gui
+Advanced recovery interface: orynquix

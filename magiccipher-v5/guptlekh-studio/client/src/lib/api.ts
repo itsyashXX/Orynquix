@@ -1,5 +1,0 @@
-import type { AnalysisResponse,LayerResponse,LayerSpec,SearchMode,TransformAlgorithm,TransformMode,TransformResponse } from '../types';
-async function post<T>(url:string,body:unknown):Promise<T>{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json().catch(()=>null);if(!r.ok)throw new Error(d?.error||'Request failed');return d as T;}
-export function analyzeCipher(input:string,depth=4,key='',searchMode:SearchMode='balanced'){return post<AnalysisResponse>('/api/analyze',{input,maxDepth:depth,key,searchMode});}
-export function transformText(input:string,mode:TransformMode,algorithm:TransformAlgorithm,key='',shift=3){return post<TransformResponse>('/api/transform',{input,mode,algorithm,key,shift});}
-export function processLayerStack(input:string,mode:TransformMode,layers:number,sequence:LayerSpec[],portableToken:boolean,key=''){return post<LayerResponse>('/api/layers',{input,mode,layers,sequence,portableToken,key});}
