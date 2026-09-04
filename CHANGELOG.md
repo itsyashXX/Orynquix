@@ -1,21 +1,32 @@
 # Changelog
 
-## 0.1.0-alpha.2 — Phone-first graphical interface
+All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and semantic versioning.
 
-- Added the touch-first Orynquix Phone GUI as the primary product surface.
-- Added one-tap guided setup, device checks, workspace start/stop and safe repair.
-- Added a graphical five-cycle Phone Proof flow with in-app results.
-- Added an authenticated loopback-only server with origin, host and request protections.
-- Added an adaptive Pocket/Tablet layout, PWA metadata and accessible controls.
-- Kept the typed CLI as an advanced recovery and automation interface.
+## [Unreleased]
 
-## 0.1.0-alpha.1 — Stage 1 technical-proof foundation
+### Added
 
-- Added typed Python control CLI.
-- Added read-only Android/Termux environment probe.
-- Added resumable Debian/XFCE bootstrap.
-- Added Termux:X11/XFCE lifecycle state machine.
-- Added process-identity safety, operation lock and atomic state.
-- Added degraded audio handling and explicit shared-folder mapping.
-- Added five-cycle proof report, redacted support bundle and safe rollback.
-- Added schemas, tests, CI and device acceptance documentation.
+- Phase 1 modular installer foundation.
+- Runtime Android/Termux device detection with honest unavailable states.
+- Device-adaptive installation recommendations.
+- Guided preset, browser, editor, and development-tool selection.
+- Quiet package operation display with stage-level progress and private detailed logs.
+- Idempotent verified stage state and safe installer locking.
+- Ubuntu provider/rootfs validation and actual release reporting.
+- Password-protected standard Ubuntu user and XDG initialization.
+- Versioned Termux-side CLI install.
+- Unit, dry-run, syntax, and static safety checks.
+- Phase 2 XFCE desktop package installation and verification.
+- TigerVNC localhost-only session with explicit authentication, display, port, geometry, and startup configuration.
+- Managed VNC session registry with PID start-time identity protection.
+- Safe start, stop, restart, status, session listing, password, resolution, and VNC log commands.
+- Targeted stale X lock, X socket, PID file, and session metadata recovery.
+- Mock VNC lifecycle integration tests and direct session safety tests.
+- Version-exact V2-to-V3 CLI and Ubuntu marker migration checks.
+- PID-reuse-safe forced termination and non-zombie process validation.
+
+### Known limitations
+
+- Requires ARM64 Termux device acceptance testing.
+- Requires a real ARM64 Termux acceptance run before `0.2.0-alpha` can be tagged as device-validated.
+- Visual identity, application compatibility, Android storage/audio integration, and Control Center remain later phases.

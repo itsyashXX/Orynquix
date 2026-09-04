@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+umask 077
+
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+
+export USER="${USER:-$(id -un)}"
+export HOME="${HOME:-$(getent passwd "$USER" | cut -d: -f6)}"
+export XDG_RUNTIME_DIR="$HOME/.cache/orynquix/runtime"
+export XDG_SESSION_TYPE=x11
+export DESKTOP_SESSION=xfce
+export XDG_CURRENT_DESKTOP=XFCE
+export NO_AT_BRIDGE=1
+
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+
+if command -v xrdb >/dev/null 2>&1 && [ -r "$HOME/.Xresources" ]; then
+    xrdb "$HOME/.Xresources"
+fi
+
+exec dbus-launch --exit-with-session xfce4-session

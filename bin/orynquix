@@ -1,0 +1,343 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SELF_PATH=$(readlink -f -- "${BASH_SOURCE[0]}")
+APP_ROOT=$(cd -- "$(dirname -- "$SELF_PATH")/.." && pwd -P)
+ORYNQUIX_PROJECT_ROOT=$APP_ROOT
+export ORYNQUIX_PROJECT_ROOT
+
+# shellcheck source=../lib/config.sh
+source "$APP_ROOT/lib/config.sh"
+# shellcheck source=../lib/output.sh
+source "$APP_ROOT/lib/output.sh"
+# shellcheck source=../lib/filesystem.sh
+source "$APP_ROOT/lib/filesystem.sh"
+# shellcheck source=../lib/process.sh
+source "$APP_ROOT/lib/process.sh"
+# shellcheck source=../lib/ubuntu.sh
+source "$APP_ROOT/lib/ubuntu.sh"
+# shellcheck source=../installer/environment.sh
+source "$APP_ROOT/installer/environment.sh"
+# shellcheck source=../installer/device.sh
+source "$APP_ROOT/installer/device.sh"
+# shellcheck source=../installer/desktop.sh
+source "$APP_ROOT/installer/desktop.sh"
+# shellcheck source=../installer/vnc.sh
+source "$APP_ROOT/installer/vnc.sh"
+
+cli_help() {
+    cat <<'EOF'
+Orynquix — Ubuntu Desktop for Android
+
+Desktop commands:
+  orynquix                 Open the interactive menu
+  orynquix start           Start the managed XFCE/TigerVNC desktop
+  orynquix stop            Stop only the managed desktop session
+  orynquix restart         Restart the managed desktop session
+  orynquix status          Show desktop session health and connection details
+  orynquix sessions        Show the managed session table
+  orynquix passwd          Change the VNC password securely
+  orynquix resolution [WIDTHxHEIGHT]
+  orynquix kill-vnc        Safely stop the tracked VNC process
+
+Foundation commands:
+  orynquix enter           Enter Ubuntu as the configured standard user
+  orynquix info            Show installed Orynquix and Ubuntu information
+  orynquix device          Detect the current Android device again
+  orynquix doctor          Diagnose installed foundation and desktop components
+  orynquix logs [install|vnc]
+  orynquix version         Show the Orynquix version
+  orynquix help            Show this help
+
+Application, audio, backup, update, and targeted repair commands are delivered
+only after their later implementations pass the quality gates.
+EOF
+}
+
+load_cli_config() {
+    [[ -r "$ORYNQUIX_CONFIG_FILE" ]] || {
+        log_error "Orynquix is not configured. Run bash install.sh from the repository."
+        return 2
+    }
+    ORYNQUIX_USERNAME=$(config_get user name)
+    ORYNQUIX_PROFILE=$(config_get system profile)
+    ORYNQUIX_RESOLUTION=$(config_get vnc resolution)
+    validate_username "$ORYNQUIX_USERNAME" && validate_profile "$ORYNQUIX_PROFILE" && validate_resolution "$ORYNQUIX_RESOLUTION" || {
+        log_error 'The Orynquix configuration is invalid. Refusing to use it.'
+        return 1
+    }
+}
+
+require_termux_host() {
+    if inside_orynquix_proot; then
+        cat >&2 <<'EOF'
+You're already inside Orynquix Ubuntu.
+
+This command manages Orynquix from Termux. Run:
+
+  exit
+
+to return to Termux and retry.
+EOF
+        return 2
+    fi
+    [[ -n "${PREFIX:-}" && -x "$PREFIX/bin/proot-distro" ]] || {
+        log_error 'Run this command from the Termux host shell.'
+        return 2
+    }
+}
+
+cmd_enter() {
+    (( $# == 0 )) || { log_error 'Usage: orynquix enter'; return 64; }
+    require_termux_host
+    load_cli_config
+    ubuntu_rootfs_works || { log_error 'The Ubuntu root filesystem is unavailable.'; return 1; }
+    exec proot-distro login --user "$ORYNQUIX_USERNAME" --shared-tmp "$ORYNQUIX_DISTRIBUTION" -- \
+        /usr/bin/env ORYNQUIX_INSIDE_PROOT=1 HOME="/home/$ORYNQUIX_USERNAME" \
+        USER="$ORYNQUIX_USERNAME" LOGNAME="$ORYNQUIX_USERNAME" SHELL=/bin/bash /bin/bash -l
+}
+
+cmd_info() {
+    (( $# == 0 )) || { log_error 'Usage: orynquix info'; return 64; }
+    load_cli_config
+    local ubuntu_version='Unavailable'
+    [[ -r "$ORYNQUIX_STATE_DIR/ubuntu-release" ]] && read -r ubuntu_version <"$ORYNQUIX_STATE_DIR/ubuntu-release"
+    printf '%sORYNQUIX%s\n\n' "$C_BOLD" "$C_RESET"
+    print_kv Version "$ORYNQUIX_VERSION"
+    print_kv Ubuntu "$ubuntu_version"
+    print_kv User "$ORYNQUIX_USERNAME"
+    print_kv Profile "$ORYNQUIX_PROFILE"
+    print_kv Resolution "$ORYNQUIX_RESOLUTION"
+    local session_state='Stopped'
+    vnc_status >/dev/null 2>&1 && session_state='Running'
+    print_kv Desktop XFCE
+    print_kv VNC "$session_state"
+    print_kv Status 'Phase 2 installed'
+}
+
+cmd_device() {
+    (( $# == 0 )) || { log_error 'Usage: orynquix device'; return 64; }
+    detect_device
+    show_device_information
+}
+
+doctor_check() {
+    local label=$1
+    shift
+    if "$@"; then
+        printf '[%s✓%s] %s\n' "$C_GREEN" "$C_RESET" "$label"
+        return 0
+    fi
+    printf '[%s✗%s] %s\n' "$C_RED" "$C_RESET" "$label"
+    return 1
+}
+
+cmd_doctor() {
+    (( $# == 0 )) || { log_error 'Usage: orynquix doctor'; return 64; }
+    require_termux_host
+    load_cli_config
+    local failures=0 bin_dir="${PREFIX:-$HOME/.local}/bin"
+    printf '%sORYNQUIX SYSTEM DOCTOR%s\n\n' "$C_BOLD" "$C_RESET"
+    doctor_check Termux test -x "$PREFIX/bin/pkg" || failures=$((failures + 1))
+    doctor_check proot-distro command -v proot-distro || failures=$((failures + 1))
+    doctor_check 'Ubuntu filesystem' ubuntu_rootfs_works || failures=$((failures + 1))
+    doctor_check 'Linux user' ubuntu_user_exists || failures=$((failures + 1))
+    doctor_check 'Orynquix marker' run_in_ubuntu test -r /etc/orynquix-release || failures=$((failures + 1))
+    doctor_check 'XFCE desktop' verify_desktop || failures=$((failures + 1))
+    doctor_check 'TigerVNC configuration' verify_vnc_configuration || failures=$((failures + 1))
+    doctor_check 'Configuration' validate_resolution "$ORYNQUIX_RESOLUTION" || failures=$((failures + 1))
+    doctor_check 'CLI executable' test -x "$bin_dir/orynquix" || failures=$((failures + 1))
+    printf '\n%d issue(s) detected.\n' "$failures"
+    (( failures == 0 ))
+}
+
+cmd_logs() {
+    (( $# <= 1 )) || { log_error 'Usage: orynquix logs [install|vnc]'; return 64; }
+    local topic=${1:-install} file
+    case "$topic" in
+        install) file="$ORYNQUIX_LOG_DIR/install.log" ;;
+        vnc)
+            load_cli_config
+            require_termux_host
+            vnc_backend log
+            return
+            ;;
+        *) log_error "Unknown log: $topic"; return 64 ;;
+    esac
+    [[ -r "$file" ]] || { log_error "Log is unavailable: $file"; return 1; }
+    if command -v less >/dev/null 2>&1 && [[ -t 1 ]]; then
+        less "$file"
+    else
+        tail -n 200 "$file"
+    fi
+}
+
+cmd_start() {
+    (( $# == 0 )) || { log_error 'Usage: orynquix start'; return 64; }
+    require_termux_host
+    load_cli_config
+    verify_vnc_configuration || { log_error 'VNC configuration is incomplete. Run orynquix doctor.'; return 1; }
+    vnc_start
+}
+
+cmd_stop() {
+    (( $# == 0 )) || { log_error 'Usage: orynquix stop'; return 64; }
+    require_termux_host
+    load_cli_config
+    vnc_stop
+}
+
+cmd_restart() {
+    (( $# == 0 )) || { log_error 'Usage: orynquix restart'; return 64; }
+    require_termux_host
+    load_cli_config
+    verify_vnc_configuration || { log_error 'VNC configuration is incomplete. Run orynquix doctor.'; return 1; }
+    vnc_restart
+}
+
+cmd_status() {
+    (( $# == 0 )) || { log_error 'Usage: orynquix status'; return 64; }
+    require_termux_host
+    load_cli_config
+    load_vnc_settings
+    local output rc=0 state pid display port resolution localhost
+    output=$(vnc_backend status) || rc=$?
+    state=$(awk -F= '$1=="state" {print $2}' <<<"$output")
+    pid=$(awk -F= '$1=="pid" {print $2}' <<<"$output")
+    display=$(awk -F= '$1=="display" {print $2}' <<<"$output")
+    port=$(awk -F= '$1=="port" {print $2}' <<<"$output")
+    resolution=$(awk -F= '$1=="resolution" {print $2}' <<<"$output")
+    localhost=$(awk -F= '$1=="localhost" {print $2}' <<<"$output")
+    printf '%sORYNQUIX DESKTOP%s\n\n' "$C_BOLD" "$C_RESET"
+    print_kv State "${state:-unknown}"
+    print_kv PID "${pid:-Unavailable}"
+    print_kv Display "${display:-:$ORYNQUIX_VNC_DISPLAY}"
+    print_kv Port "${port:-$ORYNQUIX_VNC_PORT}"
+    print_kv Resolution "${resolution:-$ORYNQUIX_VNC_RESOLUTION}"
+    print_kv 'Localhost only' "${localhost:-true}"
+    (( rc == 0 )) && printf '\nConnect to 127.0.0.1:%s\n' "${port:-$ORYNQUIX_VNC_PORT}"
+    return "$rc"
+}
+
+cmd_sessions() {
+    (( $# == 0 )) || { log_error 'Usage: orynquix sessions'; return 64; }
+    require_termux_host
+    load_cli_config
+    load_vnc_settings
+    local output rc=0 state pid display port resolution
+    output=$(vnc_backend sessions) || rc=$?
+    state=$(awk -F= '$1=="state" {print $2}' <<<"$output")
+    pid=$(awk -F= '$1=="pid" {print $2}' <<<"$output")
+    display=$(awk -F= '$1=="display" {print $2}' <<<"$output")
+    port=$(awk -F= '$1=="port" {print $2}' <<<"$output")
+    resolution=$(awk -F= '$1=="resolution" {print $2}' <<<"$output")
+    printf '%-9s %-8s %-8s %-8s %-12s\n' STATE PID DISPLAY PORT RESOLUTION
+    printf '%-9s %-8s %-8s %-8s %-12s\n' "${state:-unknown}" "${pid:--}" \
+        "${display:-:$ORYNQUIX_VNC_DISPLAY}" "${port:-$ORYNQUIX_VNC_PORT}" "${resolution:-$ORYNQUIX_VNC_RESOLUTION}"
+    return "$rc"
+}
+
+cmd_passwd() {
+    if [[ "${1-}" == --password-fd ]]; then
+        (( $# == 2 )) || { log_error 'Usage: orynquix passwd [--password-fd N]'; return 64; }
+    elif (( $# != 0 )); then
+        log_error 'Usage: orynquix passwd [--password-fd N]'
+        return 64
+    fi
+    require_termux_host
+    load_cli_config
+    if [[ "${1-}" == --password-fd ]]; then
+        [[ "${2-}" =~ ^[0-9]+$ ]] || { log_error '--password-fd requires a numeric descriptor.'; return 64; }
+        ORYNQUIX_VNC_PASSWORD_FD=$2
+        ORYNQUIX_NON_INTERACTIVE=1
+    fi
+    configure_vnc_password true
+}
+
+cmd_resolution() {
+    require_termux_host
+    load_cli_config
+    local resolution=${1-} choice
+    if [[ -z "$resolution" ]]; then
+        prompt_menu choice 'Choose a VNC resolution:' 2 \
+            '1. 1024x600 — Lite/phone' \
+            '2. 1280x720 — Balanced' \
+            '3. 1600x900 — Desktop' \
+            '4. 1920x1080 — External display' \
+            '5. Custom'
+        case "$choice" in
+            1) resolution=1024x600 ;;
+            2) resolution=1280x720 ;;
+            3) resolution=1600x900 ;;
+            4) resolution=1920x1080 ;;
+            5) read -r -p 'Enter WIDTHxHEIGHT: ' resolution ;;
+        esac
+    fi
+    (( $# <= 1 )) || { log_error 'Usage: orynquix resolution [WIDTHxHEIGHT]'; return 64; }
+    vnc_set_resolution "$resolution"
+}
+
+interactive_menu() {
+    local choice
+    while true; do
+        show_banner
+        printf '  1. Start Desktop\n'
+        printf '  2. Stop Desktop\n'
+        printf '  3. Restart Desktop\n'
+        printf '  4. Desktop Status\n'
+        printf '  5. Enter Ubuntu\n'
+        printf '  6. Change Resolution\n'
+        printf '  7. System Doctor\n'
+        printf '  8. Device Information\n'
+        printf '  9. Logs\n'
+        printf ' 10. Help\n'
+        printf ' 11. Exit\n\n'
+        read -r -p 'Choose [1-11]: ' choice
+        case "$choice" in
+            1) cmd_start ;;
+            2) cmd_stop ;;
+            3) cmd_restart ;;
+            4) cmd_status || true ;;
+            5) cmd_enter ;;
+            6) cmd_resolution ;;
+            7) cmd_doctor || true ;;
+            8) cmd_device ;;
+            9) cmd_logs install ;;
+            10) cli_help ;;
+            11) return 0 ;;
+            *) printf 'Choose a number from 1 to 11.\n' ;;
+        esac
+        printf '\nPress Enter to continue...'; read -r _
+    done
+}
+
+main() {
+    local command=${1:-menu}
+    shift || true
+    case "$command" in
+        menu) interactive_menu ;;
+        start) cmd_start "$@" ;;
+        stop|kill-vnc) cmd_stop "$@" ;;
+        restart) cmd_restart "$@" ;;
+        status) cmd_status "$@" ;;
+        sessions) cmd_sessions "$@" ;;
+        passwd) cmd_passwd "$@" ;;
+        resolution) cmd_resolution "$@" ;;
+        enter) cmd_enter "$@" ;;
+        info) cmd_info "$@" ;;
+        device) cmd_device "$@" ;;
+        doctor) cmd_doctor "$@" ;;
+        logs) cmd_logs "$@" ;;
+        version|--version|-V)
+            (( $# == 0 )) || { log_error 'Usage: orynquix version'; return 64; }
+            printf 'Orynquix %s\n' "$ORYNQUIX_VERSION"
+            ;;
+        help|--help|-h)
+            (( $# == 0 )) || { log_error 'Usage: orynquix help'; return 64; }
+            cli_help
+            ;;
+        *) log_error "Unknown command: $command"; cli_help >&2; return 64 ;;
+    esac
+}
+
+main "$@"

@@ -1,22 +1,9 @@
-# Security Policy
+# Security policy
 
-## Supported versions
+Do not open a public issue containing passwords, tokens, private logs, IP addresses, or personal files.
 
-Orynquix is pre-alpha. Only the latest commit on the active Stage 1 branch receives security fixes. No release is currently recommended for sensitive or production workloads.
+For a suspected vulnerability, use GitHub's private vulnerability reporting for `itsyashxx/orynquix` when available. Include the Orynquix version, Android/Termux versions, architecture, impact, reproduction steps, and a redacted diagnostic excerpt.
 
-## Report a vulnerability
+The supported security-update target begins with the first public alpha release. Until an alpha is tagged and device-validated, the repository is development software and should not be exposed to untrusted networks.
 
-Do not open a public issue containing credentials, private device data or an immediately exploitable vulnerability. Use GitHub's private security-advisory reporting for this repository when available. Include the affected commit, diagnostic identifier, reproduction steps, impact and a minimal redacted support bundle.
-
-## Security invariants
-
-- Orynquix runs without root and never requests root.
-- `proot` is not treated as a sandbox.
-- Stage 1 starts no network service.
-- Future network services must bind to loopback by default.
-- Commands are argument arrays, not interpolated shell strings.
-- Downloaded artifacts require trusted HTTPS and verification before they become an install path.
-- Process signals require PID, start-time and command-line identity matches.
-- User projects are separate from removable system state.
-- Telemetry is absent in Stage 1.
-
+Orynquix does not create a security boundary equivalent to a virtual machine. It runs without Android root inside Termux/PRoot, and LAN VNC will remain disabled by default.

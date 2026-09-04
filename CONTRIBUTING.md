@@ -1,13 +1,15 @@
 # Contributing
 
-Orynquix values measured compatibility and repairability over feature count.
+Orynquix accepts focused changes that keep the system real, reliable, repairable, secure, performant, and then beautiful.
 
-1. Open an issue for changes that alter the supported distribution, desktop, data boundary, lifecycle or trust model.
-2. Create a focused branch from the current default branch.
-3. Keep platform commands behind adapters and pass argument arrays.
-4. Add tests for success, idempotency, interruption and failure paths.
-5. Run `make check`.
-6. Document which real Android/Termux/device configuration was tested. Never generalize one device result into universal support.
+Before submitting a change:
 
-Do not add arbitrary shell text to future app manifests, default non-loopback listeners, silent telemetry, destructive recovery, force-push instructions or unsupported Install buttons.
+1. Keep shared behavior in `lib/`; do not duplicate host/Ubuntu adapters.
+2. Add an action and a verifier for every installer stage.
+3. Never mark a stage complete before its verifier succeeds.
+4. Preserve user homes and configuration by default.
+5. Do not add creator-specific device values, credentials, telemetry, or unverified downloads.
+6. Update tests and relevant documentation.
+7. Run the commands in `docs/DEVELOPMENT.md`.
 
+Installation changes must explain clean-install behavior, rerun behavior, failure diagnosis, repair, data preservation, ARM64 support, and PRoot limitations.

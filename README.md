@@ -1,143 +1,120 @@
 # Orynquix
 
-**A persistent, repairable Linux workstation that runs alongside Android without root.**
+**Ubuntu Desktop, shaped for Android.**
 
-Orynquix turns a supported ARM64 Android phone into a portable graphical coding environment by coordinating Termux, Debian, Termux:X11 and XFCE. It is not a custom ROM, Android replacement, virtual machine, Windows emulator or promise that every desktop application will run.
+Orynquix is building a polished Ubuntu development environment for Android using Termux, PRoot, XFCE, and TigerVNC—without Android root access.
 
-This repository currently contains the **Stage 1 graphical technical-proof build**. Its primary surface is a touch-first phone GUI that sets up, launches, checks, repairs and proves the real Linux workstation. A typed CLI remains underneath as an advanced recovery and automation interface; it is not the normal product experience.
+> Orynquix is an Ubuntu userspace, not an Android ROM, virtual machine, replacement kernel, or Canonical product.
 
-The approved design basis is preserved in [the pre-build engineering brief](docs/ORYNQUIX_PREBUILD_ENGINEERING_BRIEF.md).
+## Current release status
 
-## What works in Stage 1
+V3 (`0.2.0-alpha`) preserves the tested Phase 1 foundation and adds the Phase 2 desktop engine:
 
-- Touch-first Orynquix Phone GUI for setup, lifecycle, diagnostics and proof
-- Authenticated loopback-only local interface with no cloud service or telemetry
-- Read-only Android, ARM64, Python, RAM, storage and prerequisite diagnostics
-- Human-readable and stable JSON output
-- Idempotent Debian stable ARM64 and XFCE bootstrap
-- Termux:X11 display launch and readiness checks
-- Optional PulseAudio with honest degraded-mode reporting
-- `start`, `status`, `stop` and `repair` lifecycle commands
-- Strong process identity checks before any signal is sent
-- Interrupted-bootstrap state and append-only operation journal
-- Explicit single-folder Android storage mapping
-- Five-cycle on-device proof runner with timing, memory and persistence evidence
-- Redacted support bundles with a privacy preview
-- Conservative uninstall that preserves projects and refuses unowned rootfs removal
-- No telemetry and no non-loopback listener; optional audio transport is loopback-only
+- runtime device, architecture, CPU, memory, storage, Android, kernel, and Termux detection;
+- device-adaptive Lite, Standard, and Developer recommendations;
+- a guided Recommended / Complete / Minimal / Developer / Custom selector;
+- Chromium / Firefox / Both / Skip selection;
+- automatic VS Code / desktop VS Code / code-server / Both / Skip selection;
+- a separate coding-tools decision and Recommended / Full / Custom / Skip submenu;
+- quiet package operations with truthful verified-stage progress and private detailed logs;
+- safe resume state and stale-lock recovery;
+- Ubuntu-only `proot-distro` provider discovery and actual `/etc/os-release` reporting;
+- standard Ubuntu user creation with password-protected `sudo`;
+- validated XFCE, terminal, file manager, D-Bus, and supporting desktop packages;
+- TigerVNC on the fixed managed display `:1`, bound to localhost by default;
+- private VNC password generation with no plaintext password storage or command arguments;
+- a generated XFCE xstartup with a fresh D-Bus session and private XDG runtime directory;
+- exact PID and process-start identity tracking, safe stale-state recovery, and guarded shutdown;
+- an installed Termux-side `orynquix` CLI with desktop lifecycle, `enter`, `info`, `device`, `doctor`, and logs;
+- atomic configuration, input validation, nested-PRoot prevention, and zero telemetry.
 
-## Architecture
+Visual identity, selected applications, storage/audio integration, Control Center, backup, update, and later targeted repair commands are intentionally not claimed yet. See [current limitations](docs/LIMITATIONS.md).
 
-```text
-Android
-  └─ Termux host services
-      ├─ Orynquix Phone GUI (127.0.0.1 only)
-      ├─ Orynquix Python control plane
-      │   ├─ doctor / bootstrap / lifecycle / repair
-      │   ├─ atomic state / operation lock / journal
-      │   └─ reports / support bundle / rollback
-      ├─ Termux:X11 + optional PulseAudio
-      └─ Debian ARM64 through proot-distro
-          └─ XFCE + terminal + files + X11 test tools
-```
+## Requirements
 
-`proot` is a compatibility layer, not a security sandbox. Orynquix never treats the guest as an isolation boundary.
+- Termux from a currently supported source such as F-Droid or GitHub releases—not the obsolete Play Store build;
+- Android 12 or newer is the initial test target;
+- ARM64 (`aarch64`) is mandatory for the first public device release;
+- `x86_64` is experimental where its packages are available;
+- at least 4 GiB RAM recommended (3 GiB Lite target);
+- at least 8 GiB free storage recommended for later desktop/application phases;
+- a stable HTTPS connection.
 
-## Supported starting point
+## Installation
 
-- ARM64 Android phone or tablet
-- Current supported Termux build from a consistent official source
-- Matching Termux:X11 Android companion
-- Python 3.12 or newer
-- At least 6 GiB free; 10 GiB recommended
-- No root required
-
-The first proof supports Debian stable and XFCE only. Device support is evidence-based; passing on one phone does not claim support for every phone.
-
-## Install and open the phone GUI
-
-Install Termux and Termux:X11 from their current official release sources. Do not mix companion apps from unrelated signing sources.
-
-Inside Termux:
+The eventual supported flow is:
 
 ```bash
-pkg update
-pkg install -y git python
-git clone https://github.com/itsyashXX/Orynquix.git
-cd Orynquix
-bash scripts/install-termux.sh
+pkg update -y
+pkg install git -y
+git clone https://github.com/itsyashxx/orynquix.git
+cd orynquix
+bash install.sh
 ```
 
-The interactive installer opens the Orynquix Phone GUI in the Android browser. From there:
+Cloning downloads the repository; it does not execute the installer.
 
-- tap **Check this phone** to inspect prerequisites;
-- open **Setup** and tap **Set up my workstation**;
-- tap **Start workspace** to launch the real Termux:X11/XFCE desktop;
-- switch to the Termux:X11 Android app to use Linux;
-- return to the browser GUI to stop, repair or run Phone Proof.
-
-On later launches, keep Termux open and start the interface with:
+This alpha should first be exercised with a no-change planning run:
 
 ```bash
-orynquix-gui
+bash install.sh --dry-run --non-interactive --yes --preset standard
 ```
 
-The GUI stays entirely on the phone and listens only on loopback. See [the Phone GUI guide](docs/PHONE_GUI.md) for its security model, home-screen access and troubleshooting.
+The installer hides individual package/download lines by default and writes them to `~/.orynquix/logs/install.log`. Use `--verbose` only when you want the underlying package-manager output on screen.
 
-## Advanced recovery CLI
-
-The GUI uses the safe Python control plane directly. The following commands remain available for recovery, scripting and evidence capture:
+For all installer flags:
 
 ```bash
-orynquix doctor --json
-orynquix bootstrap --yes
+bash install.sh --help
+```
+
+## Desktop commands
+
+```bash
+orynquix
 orynquix start
-orynquix status
 orynquix stop
-orynquix repair --yes
+orynquix restart
+orynquix status
+orynquix sessions
+orynquix passwd
+orynquix resolution 1600x900
+orynquix logs vnc
+orynquix enter
+orynquix info
+orynquix device
+orynquix doctor
+orynquix logs install
+orynquix version
+orynquix help
 ```
 
-## User data boundary
+After `orynquix start`, connect the Android VNC viewer to `127.0.0.1:5901`. Later commands are added only when their backends and recovery paths pass their phase quality gates.
 
-Orynquix system state lives under the standard XDG configuration, data, state and cache directories. User projects live separately at:
+## Documentation
 
-```text
-~/OrynquixProjects
-```
-
-`orynquix uninstall --yes` does not remove that projects directory. The dedicated `orynquix-debian` container is removed only with the additional `--remove-rootfs` flag and only when the journal proves Orynquix created it. An unrelated container named `debian` is never used or removed.
-
-To expose an Android folder, grant Termux storage access, create a dedicated folder, and map only that folder:
-
-```bash
-termux-setup-storage
-mkdir -p ~/storage/shared/Orynquix
-orynquix configure --shared-directory ~/storage/shared/Orynquix
-```
-
-The guest sees it at `/mnt/orynquix-share`. Orynquix refuses to map the entire home directory or filesystem root.
-
-## Close Stage 1 on a real device
-
-Open **Proof** in the Phone GUI and tap **Run five-cycle proof**. The interface records the result under Activity and the control plane saves the full JSON evidence report.
-
-The report does not replace the required screenshot or short screen recording. Follow [the device proof guide](docs/STAGE1_DEVICE_PROOF.md) and review all evidence before beginning Stage 2. The `orynquix proof --cycles 5 --yes` CLI route remains an advanced fallback.
+- [Installer choices and quiet output](docs/INSTALLER_UX.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [TigerVNC desktop](docs/VNC.md)
+- [Security design](docs/SECURITY.md)
+- [Limitations](docs/LIMITATIONS.md)
+- [Development and tests](docs/DEVELOPMENT.md)
 
 ## Development
 
 ```bash
-python -m venv .venv
-. .venv/bin/activate
-python -m pip install -e '.[dev]'
-make check
+bash tests/run.sh
+bash tests/integration-mock.sh
+bash tests/vnc-session.sh
+bash tests/static-safety.sh
 ```
 
-Host-independent logic is tested on Linux CI. A real Termux/X11/Android device remains mandatory for the Stage 1 release gate.
+GitHub Actions additionally runs Bash syntax checks and ShellCheck. After installing on a real Termux device, run `bash tests/device-acceptance.sh`; a visual VNC/XFCE check still remains mandatory before tagging a device-validated release.
 
-## Compatibility promise
+## Contributing and security
 
-Applications will eventually be labeled exactly one of: **Native**, **Integrated Android**, **Web/PWA**, **Translated — Experimental**, **Remote**, or **Unsupported**. Orynquix will not display an Install action for an unverified idea.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a change. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
-## Status and license
+## License
 
-Orynquix is pre-alpha software. Stage 1 uses the recommended Apache License 2.0; see [LICENSE](LICENSE). Security reports should follow [SECURITY.md](SECURITY.md).
+Orynquix source code is licensed under the [MIT License](LICENSE). Third-party packages keep their own licenses. Orynquix is not affiliated with or endorsed by Canonical Ltd.

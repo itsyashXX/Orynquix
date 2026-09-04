@@ -1,0 +1,28 @@
+name: Shell quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ShellCheck
+        run: sudo apt-get update -q && sudo apt-get install -y shellcheck
+      - name: Bash syntax
+        run: find . -type f \( -name '*.sh' -o -path './bin/orynquix' \) -print0 | xargs -0 -n1 bash -n
+      - name: ShellCheck
+        run: shellcheck -x install.sh bin/orynquix lib/*.sh installer/*.sh tests/*.sh
+      - name: Unit tests
+        run: bash tests/run.sh
+      - name: Mock installer integration test
+        run: bash tests/integration-mock.sh
+      - name: VNC session safety tests
+        run: bash tests/vnc-session.sh
+      - name: Static safety checks
+        run: bash tests/static-safety.sh
